@@ -10,8 +10,8 @@
  * - Uses `courseStore` for persistent filter selections.
  */
 import * as React from 'react';
-import { Filter, Search, Loader2 } from 'lucide-react';
-import { api } from '../../lib/mockApi';
+import { Filter, Search } from 'lucide-react';
+import { api } from '../../lib/axios';
 import { Course } from '../../types';
 import { useCourseStore } from '../../store/courseStore';
 import { Button } from '../../components/ui/Button';
@@ -27,25 +27,17 @@ export function CoursesPage() {
 
   React.useEffect(() => {
     setIsLoading(true);
-    api.getCourses()
-      .then(data => {
-        // Mock filtering logic that would normally happen on the backend
-        let filtered = data.filter(c => 
-          c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-          c.description.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-        
-        if (selectedCategories.length > 0) {
-          filtered = filtered.filter(c => selectedCategories.includes(c.category));
-        }
-
-        // Mock Sorting
-        if (sortBy === 'price-asc') filtered.sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
-        if (sortBy === 'price-desc') filtered.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
-        if (sortBy === 'rating') filtered.sort((a, b) => b.rating - a.rating);
-
-        setCourses(filtered);
+    // Build query params
+    const params = new URLSearchParams();
+    if (searchQuery) params.append('search', searchQuery);
+    if (selectedCategories.length > 0) params.append('category', selectedCategories.join(',')); // API might handle multiple if we update it, or just first one
+    if (sortBy) params.append('sort', sortBy);
+    
+    api.get(`/courses?${params.toString()}`)
+      .then(res => {
+        setCourses(res.data.data.courses);
       })
+      .catch(console.error)
       .finally(() => setIsLoading(false));
   }, [searchQuery, selectedCategories, sortBy]);
 
@@ -126,7 +118,7 @@ export function CoursesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Same Course Card markup from HomePage could be abstracted to a <CourseCard> component */}
             {courses.map(course => (
-              <a key={course.id} href={`/courses/${course.id}`} className="group block rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all overflow-hidden">
+              <a key={course._id} href={`/courses/${course.slug}`} className="group block rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all overflow-hidden">
                 <div className="aspect-video w-full overflow-hidden">
                   <img src={course.thumbnail} alt={course.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                 </div>

@@ -71,8 +71,11 @@ export interface Instructor {
  * Contains all metadata and content structure for a course
  */
 export interface Course {
+  /** MongoDB identifier */
+  _id?: string;
   /** Unique course identifier (UUID) */
   id: string;
+  slug?: string;
   /** Course title displayed in cards and detail pages */
   title: string;
   /** Short description for course cards (max 150 chars) */
@@ -95,6 +98,7 @@ export interface Course {
   level: CourseLevel;
   /** Total duration of all lessons in minutes */
   duration: number;
+  totalDuration?: number;
   /** Number of enrolled students */
   studentsCount: number;
   /** Average rating out of 5 */
@@ -116,6 +120,7 @@ export interface Course {
  * Acts as a chapter or module in the curriculum
  */
 export interface Section {
+  _id?: string;
   /** Unique section identifier */
   id: string;
   /** Section title (e.g., "Introduction to React") */
@@ -131,6 +136,7 @@ export interface Section {
  * Represents a single video or content unit
  */
 export interface Lesson {
+  _id?: string;
   /** Unique lesson identifier */
   id: string;
   /** Lesson title shown in curriculum */

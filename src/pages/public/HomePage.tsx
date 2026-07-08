@@ -13,7 +13,7 @@
 import * as React from 'react';
 import { Search, MonitorPlay, Server, Layout, Shield, ArrowRight, Star } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { api } from '../../lib/mockApi';
+import { api } from '../../lib/axios';
 import { Course } from '../../types';
 
 export function HomePage() {
@@ -21,7 +21,7 @@ export function HomePage() {
   
   React.useEffect(() => {
     // Fetch mock data on mount
-    api.getCourses().then(courses => setFeaturedCourses(courses.slice(0, 4)));
+    api.get('/courses/featured').then(res => setFeaturedCourses(res.data.data.courses.slice(0, 4)));
   }, []);
 
   return (
@@ -71,7 +71,7 @@ export function HomePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredCourses.map(course => (
-              <a key={course.id} href={`/courses/${course.id}`} className="group block rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md overflow-hidden">
+              <a key={course._id} href={`/courses/${course.slug}`} className="group block rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md overflow-hidden">
                 <div className="aspect-video w-full overflow-hidden">
                   <img src={course.thumbnail} alt={course.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                 </div>

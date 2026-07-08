@@ -9,7 +9,7 @@
  * TODO: Add actual React Router <Link> components once routing is set up.
  * TODO: Implement search bar dropdown in desktop view.
  */
-import * as React from 'react';
+
 import { Menu, Search, BookOpen, LogOut, User as UserIcon } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useUiStore } from '../../store/uiStore';
@@ -80,7 +80,7 @@ export function Navbar() {
                 )}
                 
                 {/* Simple Dropdown Mock */}
-                <div className="absolute right-0 top-12 hidden w-48 flex-col rounded-md border border-gray-200 bg-white shadow-lg group-hover:flex">
+                <div className="absolute right-0 top-10 hidden w-48 flex-col rounded-md border border-gray-200 bg-white shadow-lg group-hover:flex">
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-medium">{user.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user.email}</p>

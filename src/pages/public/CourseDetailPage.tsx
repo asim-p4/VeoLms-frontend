@@ -7,21 +7,44 @@
  */
 import * as React from 'react';
 import { PlayCircle, Clock, Users, Star, Check } from 'lucide-react';
-import { api } from '../../lib/mockApi';
+import { api } from '../../lib/axios';
 import { Course } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 
 export function CourseDetailPage() {
   const params = useParams();
   // In a real app, this would use useParams() from react-router
   const courseId = params.id || 'react-masterclass'; 
   const [course, setCourse] = React.useState<Course | null>(null);
+  const [isEnrolling, setIsEnrolling] = React.useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
 
   React.useEffect(() => {
-    api.getCourseById(courseId).then(setCourse).catch(console.error);
+    api.get(`/courses/${courseId}`).then(res => setCourse(res.data.data.course)).catch(console.error);
   }, [courseId]);
+
+  const handleEnroll = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    try {
+      setIsEnrolling(true);
+      // Stripe mock enrollment
+      await api.post('/enrollments', { courseId: course?._id || course?.id });
+      // Redirect to dashboard
+      navigate('/dashboard');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to enroll. You might already be enrolled.');
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
 
   if (!course) {
     return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
@@ -73,10 +96,12 @@ export function CourseDetailPage() {
                   )}
                 </div>
                 
-                <Button size="lg" className="w-full text-lg h-12">Enroll Now</Button>
+                <Button size="lg" className="w-full text-lg h-12" onClick={handleEnroll} disabled={isEnrolling}>
+                  {isEnrolling ? 'Processing...' : 'Enroll Now'}
+                </Button>
                 
                 <div className="space-y-3 text-sm text-gray-600">
-                  <div className="flex items-center gap-3"><Clock className="h-4 w-4" /> {course.duration / 60} hours on-demand video</div>
+                  <div className="flex items-center gap-3"><Clock className="h-4 w-4" /> {course.totalDuration ? (course.totalDuration / 60).toFixed(1) : 0} hours on-demand video</div>
                   <div className="flex items-center gap-3"><Check className="h-4 w-4" /> Full lifetime access</div>
                   <div className="flex items-center gap-3"><Check className="h-4 w-4" /> Certificate of completion</div>
                 </div>
@@ -92,11 +117,11 @@ export function CourseDetailPage() {
         
         {/* Accordion-style Curriculum Mock */}
         <div className="border border-gray-200 rounded-xl overflow-hidden mb-12">
-          {course.sections.map((section, idx) => (
-            <div key={section.id} className={`border-b border-gray-200 last:border-0 ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+          {course.sections?.map((section, idx) => (
+            <div key={section._id || idx} className={`border-b border-gray-200 last:border-0 ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
               <div className="p-4 flex justify-between items-center font-medium">
                 <span>{section.title}</span>
-                <span className="text-sm text-gray-500">{section.lessons.length} lectures</span>
+                <span className="text-sm text-gray-500">{section.lessons?.length || 0} lectures</span>
               </div>
             </div>
           ))}
@@ -107,10 +132,10 @@ export function CourseDetailPage() {
           <img src={course.instructor.avatar} alt={course.instructor.name} className="w-24 h-24 rounded-full object-cover" />
           <div>
             <h3 className="text-xl font-bold">{course.instructor.name}</h3>
-            <p className="text-gray-500 mb-4">{course.instructor.bio}</p>
+            <p className="text-gray-500 mb-4">{course.instructor.bio || 'Instructor at VeoLMS'}</p>
             <div className="flex gap-4 text-sm font-medium text-gray-700">
-              <span>{course.instructor.studentsCount.toLocaleString()} Students</span>
-              <span>{course.instructor.coursesCount} Courses</span>
+              <span>{course.instructor.studentsCount?.toLocaleString() || 0} Students</span>
+              <span>{course.instructor.coursesCount || 0} Courses</span>
             </div>
           </div>
         </div>

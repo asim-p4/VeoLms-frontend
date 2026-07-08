@@ -14,7 +14,7 @@
 import * as React from 'react';
 import { Play, BookOpen, Clock, Award } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { api } from '../../lib/mockApi';
+import { api } from '../../lib/axios';
 import { Course, Enrollment } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -29,17 +29,10 @@ export function DashboardPage() {
   React.useEffect(() => {
     if (!user) return;
     
-    // Fetch enrollments and map to actual course data
-    api.getUserEnrollments(user.id).then(async (userEnrollments) => {
-      const enriched = await Promise.all(
-        userEnrollments.map(async (enr) => {
-          const course = await api.getCourseById(enr.courseId);
-          return { ...enr, course };
-        })
-      );
-      setEnrollments(enriched);
+    api.get('/enrollments/me').then(res => {
+      setEnrollments(res.data.data.enrollments);
       setIsLoading(false);
-    });
+    }).catch(console.error);
   }, [user]);
 
   if (isLoading) {
@@ -88,12 +81,12 @@ export function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {enrollments.map(({ course, progressPercentage }) => (
-            <div key={course.id} className="group bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <div key={course._id} className="group bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <div className="aspect-video relative">
                 <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button variant="default" className="rounded-full shadow-lg gap-2" asChild>
-                    <a href={`/learn/${course.id}`}>
+                    <a href={`/learn/${course.slug}`}>
                       <Play className="h-4 w-4" /> Continue
                     </a>
                   </Button>

@@ -9,7 +9,8 @@
  * 
  * TODO: Replace `window.location.href` with React Router's `useNavigate` once routing is configured.
  */
-import * as React from 'react';
+
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -17,7 +18,7 @@ import { BookOpen, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useAuthStore } from '../../store/authStore';
-import { api } from '../../lib/mockApi';
+import { api } from '../../lib/axios';
 
 /** Form validation schema using Zod */
 const loginSchema = z.object({
@@ -29,6 +30,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const { login, isLoading, setLoading, error, setError } = useAuthStore();
+  // useNavigate for client-side redirect (avoids full page reload)
+  const navigate = useNavigate();
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -43,17 +46,23 @@ export function LoginPage() {
       setLoading(true);
       setError(null);
       
-      const user = await api.login(data.email, data.password);
-      login(user); // Save to Zustand
+      const { data: resData } = await api.post('/auth/login', {
+        email: data.email,
+        password: data.password
+      });
+      const user = resData.data.user;
+      const accessToken = resData.data.accessToken;
+      
+      login(user, accessToken);
 
-      // Redirect based on role
+      // Client-side navigation: no full page reload, no re-trigger of checkAuth
       if (user.role === 'admin') {
-        window.location.href = '/admin';
+        navigate('/admin');
       } else {
-        window.location.href = '/dashboard';
+        navigate('/dashboard');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to login');
+      setError(err.response?.data?.message || err.message || 'Failed to login');
     } finally {
       setLoading(false);
     }

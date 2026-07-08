@@ -5,7 +5,7 @@
  * RESPONSIVE:
  * - Hidden on mobile, replaced by a drawer (mocked via uiStore logic later).
  */
-import * as React from 'react';
+
 import { LayoutDashboard, Book, Users, BarChart, Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
 

@@ -8,7 +8,7 @@
  */
 import * as React from 'react';
 import { Users, BookOpen, CreditCard, Activity } from 'lucide-react';
-import { api } from '../../lib/mockApi';
+import { api } from '../../lib/axios';
 import { Course } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -19,15 +19,20 @@ export function AdminDashboardPage() {
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    // Mock aggregations
-    api.getCourses().then(courses => {
-      const totalRevenue = courses.reduce((acc, curr) => acc + ((curr.discountPrice || curr.price) * curr.studentsCount), 0);
-      const totalStudents = courses.reduce((acc, curr) => acc + curr.studentsCount, 0);
-      
-      setStats({ courses: courses.length, revenue: totalRevenue, students: totalStudents });
-      setRecentCourses(courses.slice(0, 5));
-      setIsLoading(false);
-    });
+    api.get('/admin/stats').then(res => {
+      const data = res.data.data;
+      setStats({
+        courses: data.stats.totalCourses,
+        revenue: data.stats.totalRevenue,
+        students: data.stats.totalStudents,
+      });
+      // Mock recent courses via enrollments for now if recentCourses isn't provided directly, 
+      // or we can just fetch /admin/courses
+      api.get('/admin/courses?limit=5').then(cRes => {
+        setRecentCourses(cRes.data.data.courses);
+        setIsLoading(false);
+      });
+    }).catch(console.error);
   }, []);
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-64 w-full" /></div>;
@@ -79,7 +84,7 @@ export function AdminDashboardPage() {
               </thead>
               <tbody>
                 {recentCourses.map((course) => (
-                  <tr key={course.id} className="border-b hover:bg-gray-50">
+                  <tr key={course._id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900 truncate max-w-xs">{course.title}</td>
                     <td className="px-4 py-3">{course.category}</td>
                     <td className="px-4 py-3 text-right">₹{(course.discountPrice || course.price) / 100}</td>

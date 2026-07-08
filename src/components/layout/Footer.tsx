@@ -2,7 +2,7 @@
  * @fileoverview Main Application Footer
  * Contains standard platform links, copyright, and social icons.
  */
-import * as React from 'react';
+
 import { BookOpen } from 'lucide-react';
 
 export function Footer() {

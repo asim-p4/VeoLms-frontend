@@ -11,9 +11,11 @@
  */
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { api } from '../../lib/axios';
 import * as z from 'zod';
-import { ArrowLeft, ArrowRight, Save } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
@@ -22,6 +24,7 @@ const basicInfoSchema = z.object({
   title: z.string().min(10, 'Title must be at least 10 characters'),
   description: z.string().min(20, 'Description must be at least 20 characters'),
   category: z.string().min(1, 'Please select a category'),
+  level: z.string().min(1, 'Please select a level'),
   price: z.coerce.number().min(0, 'Price cannot be negative'),
 });
 
@@ -30,14 +33,30 @@ type BasicInfoData = z.infer<typeof basicInfoSchema>;
 export function CreateCoursePage() {
   const [step, setStep] = React.useState(1);
   const totalSteps = 4; // 1. Basic, 2. Content, 3. Media, 4. Pricing
+  const [isLoading, setIsLoading] = React.useState(false);
+  const navigate = useNavigate();
 
   const { register, handleSubmit, formState: { errors } } = useForm<BasicInfoData>({
     resolver: zodResolver(basicInfoSchema)
   });
 
-  const onNext = (data: BasicInfoData) => {
-    console.log('Step 1 Data Saved to memory:', data);
-    setStep(2);
+  const onNext = async (data: BasicInfoData) => {
+    try {
+      setIsLoading(true);
+      // Create course via API. Convert price to paise
+      const res = await api.post('/admin/courses', {
+        ...data,
+        price: data.price * 100,
+      });
+      console.log('Course created:', res.data.data.course);
+      // Just redirect back to courses list for now
+      navigate('/admin/courses');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to create course');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -99,6 +118,20 @@ export function CreateCoursePage() {
                   {errors.category && <p className="text-error text-xs mt-1">{errors.category.message}</p>}
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
+                  <select 
+                    {...register('level')}
+                    className="w-full rounded-md border border-gray-200 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">Select Level</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                    <option value="All Levels">All Levels</option>
+                  </select>
+                  {errors.level && <p className="text-error text-xs mt-1">{errors.level.message}</p>}
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Base Price (INR)</label>
                   <Input 
                     type="number" 
@@ -112,7 +145,7 @@ export function CreateCoursePage() {
 
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                 <Button variant="outline" type="button">Save Draft</Button>
-                <Button type="submit">Continue to Curriculum <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                <Button type="submit" disabled={isLoading}>Create Course <ArrowRight className="ml-2 h-4 w-4" /></Button>
               </div>
             </form>
           )}

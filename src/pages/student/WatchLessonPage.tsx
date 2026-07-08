@@ -12,7 +12,7 @@
 import * as React from 'react';
 import { Menu, X, CheckCircle2, Circle, ChevronLeft } from 'lucide-react';
 import { useUiStore } from '../../store/uiStore';
-import { api } from '../../lib/mockApi';
+import { api } from '../../lib/axios';
 import { Course } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -30,12 +30,13 @@ export function WatchLessonPage() {
   React.useEffect(() => {
     // In real app, IDs come from URL params
     const courseId = params.id || 'react-masterclass';
-    api.getCourseById(courseId).then(c => {
+    api.get(`/courses/${courseId}`).then(res => {
+      const c = res.data.data.course;
       setCourse(c);
-      if (c.sections[0]?.lessons[0]) {
-        setActiveLessonId(c.sections[0].lessons[0].id);
+      if (c.sections?.[0]?.lessons?.[0]) {
+        setActiveLessonId(c.sections[0].lessons[0]._id);
       }
-    });
+    }).catch(console.error);
   }, [params.id]);
 
   if (!course) return <div className="h-screen w-full flex items-center justify-center"><Skeleton className="h-12 w-12 rounded-full" /></div>;
@@ -87,25 +88,25 @@ export function WatchLessonPage() {
           </div>
           
           <div className="flex-1 overflow-y-auto">
-            {course.sections.map((section, sIdx) => (
-              <div key={section.id} className="border-b border-gray-100 last:border-0">
+            {course.sections?.map((section, sIdx) => (
+              <div key={section._id} className="border-b border-gray-100 last:border-0">
                 
                 {/* Section Header */}
                 <div className="p-4 bg-gray-50/50">
                   <h3 className="font-semibold text-sm">Section {sIdx + 1}: {section.title}</h3>
-                  <p className="text-xs text-gray-500 mt-1">0 / {section.lessons.length} | {section.lessons.reduce((acc, curr) => acc + curr.duration, 0)} min</p>
+                  <p className="text-xs text-gray-500 mt-1">0 / {section.lessons?.length || 0} | {section.lessons?.reduce((acc, curr) => acc + curr.duration, 0) || 0} min</p>
                 </div>
 
                 {/* Lessons List */}
                 <ul className="py-2">
-                  {section.lessons.map((lesson, lIdx) => {
-                    const isActive = lesson.id === activeLessonId;
+                  {section.lessons?.map((lesson, lIdx) => {
+                    const isActive = lesson._id === activeLessonId;
                     const isCompleted = false; // Mock state
                     
                     return (
-                      <li key={lesson.id}>
+                      <li key={lesson._id}>
                         <button 
-                          onClick={() => setActiveLessonId(lesson.id)}
+                          onClick={() => setActiveLessonId(lesson._id || null)}
                           className={`w-full flex items-start text-left gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${isActive ? 'bg-primary-50/50 border-l-4 border-primary-600 pl-3' : 'border-l-4 border-transparent'}`}
                         >
                           <div className="mt-0.5 shrink-0">

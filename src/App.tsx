@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -28,14 +29,25 @@ import { useAuthStore } from './store/authStore';
 const ProtectedRoute = ({
   requireAdmin = false,
 }: { requireAdmin?: boolean }) => {
-  const user = useAuthStore((state) => state.user);
+  const { user, isLoading } = useAuthStore();
 
-  // when user is not login
+  // Show a full-screen spinner while checkAuth is resolving on app boot.
+  // Without this guard, the route renders with user=null instantly and redirects to /login
+  // before the refresh token exchange has a chance to complete.
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 rounded-full border-4 border-primary-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Not authenticated — redirect to login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // when user try to acces admin routes
+  // Authenticated but lacks admin role
   if (requireAdmin && user.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -44,6 +56,12 @@ const ProtectedRoute = ({
 };
 
 function App() {
+  const { checkAuth } = useAuthStore();
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
   return (
     <BrowserRouter>
       <Routes>
