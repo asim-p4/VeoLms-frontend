@@ -49,7 +49,7 @@ export function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  
+
   const [step, setStep] = useState<1 | 2>(1);
   const [registeredEmail, setRegisteredEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -120,7 +120,7 @@ export function SignupPage() {
         password: data.password,
         avatar: avatarUrl || undefined
       });
-      
+
       setRegisteredEmail(data.email);
       setStep(2);
       toast.success(resData.message || "Verification code sent to your email.");
@@ -138,17 +138,17 @@ export function SignupPage() {
       toast.error("Please enter a valid 6-digit code");
       return;
     }
-    
+
     try {
       setIsVerifying(true);
       const { data: resData } = await api.post('/auth/verify-email', {
         email: registeredEmail,
         code: verificationCode
       });
-      
+
       const user = resData.data.user;
       const accessToken = resData.data.accessToken;
-      
+
       login(user, accessToken);
       toast.success("Account verified successfully!");
       navigate("/dashboard");
@@ -175,13 +175,13 @@ export function SignupPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
         <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-xl shadow-sm border border-gray-100">
-          <button 
-            onClick={() => setStep(1)} 
+          <button
+            onClick={() => setStep(1)}
             className="flex items-center text-sm text-gray-500 hover:text-gray-700 transition"
           >
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </button>
-          
+
           <div className="flex flex-col items-center">
             <div className="h-12 w-12 bg-primary-100 rounded-full flex items-center justify-center mb-4">
               <Mail className="h-6 w-6 text-primary-600" />
@@ -190,7 +190,7 @@ export function SignupPage() {
               Check your email
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              We've sent a 6-digit verification code to <br/>
+              We've sent a 6-digit verification code to <br />
               <span className="font-medium text-gray-900">{registeredEmail}</span>
             </p>
           </div>
@@ -217,11 +217,11 @@ export function SignupPage() {
                 "Verify Account"
               )}
             </Button>
-            
+
             <div className="text-center mt-4">
               <p className="text-sm text-gray-600">
                 Didn't receive the code?{" "}
-                <button 
+                <button
                   type="button"
                   onClick={handleResendCode}
                   disabled={isVerifying}
@@ -329,15 +329,14 @@ export function SignupPage() {
                   {[1, 2, 3, 4].map((level) => (
                     <div
                       key={level}
-                      className={`flex-1 rounded-full ${
-                        strengthScore >= level
+                      className={`flex-1 rounded-full ${strengthScore >= level
                           ? strengthScore === 4
                             ? "bg-success"
                             : strengthScore >= 2
                               ? "bg-warning"
                               : "bg-error"
                           : "bg-gray-200"
-                      }`}
+                        }`}
                     />
                   ))}
                 </div>

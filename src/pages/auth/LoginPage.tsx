@@ -98,11 +98,10 @@ export function LoginPage() {
             type="button"
             id="tab-student"
             onClick={() => handleTabChange('student')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${
-              loginMode === 'student'
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${loginMode === 'student'
                 ? 'bg-white text-primary-700 shadow-sm border border-gray-200'
                 : 'text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
           >
             <GraduationCap className="h-4 w-4" />
             Student
@@ -111,11 +110,10 @@ export function LoginPage() {
             type="button"
             id="tab-admin"
             onClick={() => handleTabChange('admin')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${
-              loginMode === 'admin'
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${loginMode === 'admin'
                 ? 'bg-white text-primary-700 shadow-sm border border-gray-200'
                 : 'text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
           >
             <ShieldCheck className="h-4 w-4" />
             Admin
