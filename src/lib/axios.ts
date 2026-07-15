@@ -28,7 +28,7 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000,
+  timeout: 60000, // Increased to 60s to allow Render free tier to wake up from sleep
 });
 
 // --- Concurrent Refresh Queue ---
