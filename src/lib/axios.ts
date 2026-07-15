@@ -10,7 +10,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "../store/authStore";
 
 /** Base API URL — defaults to localhost in development */
-const SERVER_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const SERVER_API_URL = import.meta.env.SERVER_API_URI || "http://localhost:5000/api";
 
 /**
  * Main axios instance used throughout the app.
