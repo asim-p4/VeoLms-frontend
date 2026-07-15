@@ -10,15 +10,13 @@
  * TODO: Implement search bar dropdown in desktop view.
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Menu, BookOpen, LogOut, User as UserIcon, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { useUiStore } from '../../store/uiStore';
 import { Button } from '../ui/Button';
 
 export function Navbar() {
   const { user, logout } = useAuthStore();
-  const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/axios';
 import { Button } from '../../components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { Card, CardContent } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ArrowLeft, BookOpen, Clock, Ban, CheckCircle } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
