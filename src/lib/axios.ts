@@ -10,7 +10,12 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "../store/authStore";
 
 /** Base API URL — defaults to localhost in development */
-const SERVER_API_URL = import.meta.env.SERVER_API_URI || "http://localhost:5000/api";
+let SERVER_API_URL = import.meta.env.SERVER_API_URI || "http://localhost:5000/api";
+
+// Automatically append /api if the user provided the base domain without it in production
+if (SERVER_API_URL && !SERVER_API_URL.endsWith('/api')) {
+  SERVER_API_URL = `${SERVER_API_URL.replace(/\/$/, '')}/api`;
+}
 
 /**
  * Main axios instance used throughout the app.
