@@ -11,10 +11,11 @@
  * TODO: Replace static images with optimized responsive `<picture>` tags or Next/Image equivalent if porting to Next.js.
  */
 import * as React from 'react';
-import { Search, MonitorPlay, Server, Layout, Shield, ArrowRight, Star } from 'lucide-react';
+import { Layout, Shield, ArrowRight } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { api } from '../../lib/axios';
 import { Course } from '../../types';
+import { CourseCard } from '../../components/lms/CourseCard';
 
 export function HomePage() {
   const [featuredCourses, setFeaturedCourses] = React.useState<Course[]>([]);
@@ -39,15 +40,7 @@ export function HomePage() {
             Build skills with courses, certificates, and degrees online from world-class instructors.
           </p>
           
-          <div className="max-w-2xl mx-auto flex items-center bg-white rounded-full p-2 mb-8 shadow-xl">
-            <Search className="h-6 w-6 text-gray-400 ml-4 flex-shrink-0" />
-            <input 
-              type="text" 
-              placeholder="What do you want to learn today?" 
-              className="flex-1 bg-transparent border-none focus:ring-0 px-4 py-3 text-gray-900 outline-none"
-            />
-            <Button size="lg" className="rounded-full px-8">Search</Button>
-          </div>
+          <div className="max-w-2xl mx-auto flex items-center bg-transparent p-2 mb-8" />
           
           <div className="flex justify-center gap-8 text-sm font-medium text-gray-300">
             <div className="flex items-center gap-2"><Layout className="h-5 w-5 text-primary-400"/> 1000+ Courses</div>
@@ -71,45 +64,13 @@ export function HomePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredCourses.map(course => (
-              <a key={course._id} href={`/courses/${course.slug}`} className="group block rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md overflow-hidden">
-                <div className="aspect-video w-full overflow-hidden">
-                  <img src={course.thumbnail} alt={course.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-                </div>
-                <div className="p-5">
-                  <h3 className="font-semibold text-lg line-clamp-2 mb-2 group-hover:text-primary-600 transition-colors">{course.title}</h3>
-                  <p className="text-sm text-gray-500 mb-4">{course.instructor.name}</p>
-                  <div className="flex items-center gap-1 text-sm font-medium text-yellow-600 mb-4">
-                    <Star className="h-4 w-4 fill-current" /> {course.rating} <span className="text-gray-400 font-normal">({course.reviewsCount.toLocaleString()})</span>
-                  </div>
-                  <div className="text-lg font-bold text-gray-900">
-                    ₹{(course.discountPrice || course.price) / 100}
-                  </div>
-                </div>
-              </a>
+              <CourseCard key={course._id || course.id} course={course} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* 3. CATEGORIES */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4 md:px-6">
-          <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">Top Categories</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { name: 'Frontend Web', icon: MonitorPlay },
-              { name: 'Backend APIs', icon: Server },
-              { name: 'UI/UX Design', icon: Layout },
-              { name: 'Cybersecurity', icon: Shield },
-            ].map(cat => (
-              <a key={cat.name} href={`/courses?category=${cat.name}`} className="flex flex-col items-center justify-center p-8 rounded-xl bg-white border border-gray-200 hover:border-primary-500 hover:shadow-md transition-all group">
-                <cat.icon className="h-10 w-10 text-gray-700 group-hover:text-primary-600 mb-4 transition-colors" />
-                <span className="font-semibold text-gray-900 group-hover:text-primary-600">{cat.name}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
       {/* 4. CTA */}
       <section className="py-24 bg-primary-600 text-white text-center">

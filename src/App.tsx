@@ -23,12 +23,17 @@ import { WatchLessonPage } from './pages/student/WatchLessonPage';
 import { AdminDashboardPage } from './pages/admin/DashboardPage';
 import { CourseManagementPage } from './pages/admin/CourseManagementPage';
 import { CreateCoursePage } from './pages/admin/CreateCoursePage';
+import { EditCoursePage } from './pages/admin/EditCoursePage';
+import { StudentsPage } from './pages/admin/StudentsPage';
+import { StudentDetailsPage } from './pages/admin/StudentDetailsPage';
+import { AnalyticsPage } from './pages/admin/AnalyticsPage';
+import { SettingsPage } from './pages/admin/SettingsPage';
 
 import { useAuthStore } from './store/authStore';
 
 const ProtectedRoute = ({
-  requireAdmin = false,
-}: { requireAdmin?: boolean }) => {
+  allowedRoles,
+}: { allowedRoles?: string[] }) => {
   const { user, isLoading } = useAuthStore();
 
   // Show a full-screen spinner while checkAuth is resolving on app boot.
@@ -47,8 +52,11 @@ const ProtectedRoute = ({
     return <Navigate to="/login" replace />;
   }
 
-  // Authenticated but lacks admin role
-  if (requireAdmin && user.role !== 'admin') {
+  // Authenticated but lacks required role
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    if (user.role === 'admin') {
+      return <Navigate to="/admin" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -78,7 +86,7 @@ function App() {
         <Route path="/signup" element={<SignupPage />} />
 
         {/* STUDENT ROUTES */}
-        <Route element={<ProtectedRoute />}>
+        <Route element={<ProtectedRoute allowedRoles={['student']} />}>
           <Route element={<MainLayout />}>
             <Route path="dashboard" element={<StudentDashboard />} />
           </Route>
@@ -87,19 +95,16 @@ function App() {
         </Route>
 
         {/* ADMIN ROUTES */}
-        <Route element={<ProtectedRoute requireAdmin />}>
+        <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           <Route element={<AdminLayout />}>
             <Route path="admin" element={<AdminDashboardPage />} />
-
-            <Route
-              path="admin/courses"
-              element={<CourseManagementPage />}
-            />
-
-            <Route
-              path="admin/courses/new"
-              element={<CreateCoursePage />}
-            />
+            <Route path="admin/courses" element={<CourseManagementPage />} />
+            <Route path="admin/courses/new" element={<CreateCoursePage />} />
+            <Route path="admin/courses/:id/edit" element={<EditCoursePage />} />
+            <Route path="admin/students" element={<StudentsPage />} />
+            <Route path="admin/students/:id" element={<StudentDetailsPage />} />
+            <Route path="admin/analytics" element={<AnalyticsPage />} />
+            <Route path="admin/settings" element={<SettingsPage />} />
           </Route>
         </Route>
 

@@ -19,20 +19,27 @@ export function AdminDashboardPage() {
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    api.get('/admin/stats').then(res => {
-      const data = res.data.data;
-      setStats({
-        courses: data.stats.totalCourses,
-        revenue: data.stats.totalRevenue,
-        students: data.stats.totalStudents,
-      });
-      // Mock recent courses via enrollments for now if recentCourses isn't provided directly, 
-      // or we can just fetch /admin/courses
-      api.get('/admin/courses?limit=5').then(cRes => {
-        setRecentCourses(cRes.data.data.courses);
+    const load = async () => {
+      try {
+        const statsRes = await api.get('/admin/stats');
+        const data = statsRes.data.data;
+        setStats({
+          courses: data.stats.totalCourses,
+          revenue: data.stats.totalRevenue,
+          students: data.stats.totalStudents,
+        });
+
+        const coursesRes = await api.get('/admin/courses?limit=5');
+        setRecentCourses(coursesRes.data.data.courses);
+      } catch (err) {
+        console.error('Failed to load dashboard data', err);
+      } finally {
+        // Always stop the skeleton — even on error, show an empty state
         setIsLoading(false);
-      });
-    }).catch(console.error);
+      }
+    };
+
+    load();
   }, []);
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-64 w-full" /></div>;
@@ -47,7 +54,7 @@ export function AdminDashboardPage() {
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
-          { title: 'Total Revenue', value: `₹${(stats.revenue / 100).toLocaleString()}`, icon: CreditCard, subtitle: '+20.1% from last month' },
+          { title: 'Total Revenue', value: `$${(stats.revenue / 100).toLocaleString()}`, icon: CreditCard, subtitle: '+20.1% from last month' },
           { title: 'Total Students', value: stats.students.toLocaleString(), icon: Users, subtitle: '+180 new students' },
           { title: 'Active Courses', value: stats.courses.toString(), icon: BookOpen, subtitle: '2 pending review' },
           { title: 'Active Sessions', value: '543', icon: Activity, subtitle: 'Currently online' },
@@ -76,20 +83,20 @@ export function AdminDashboardPage() {
               <thead className="text-xs text-gray-700 uppercase bg-gray-50">
                 <tr>
                   <th className="px-4 py-3">Course Name</th>
-                  <th className="px-4 py-3">Category</th>
+
                   <th className="px-4 py-3 text-right">Price</th>
                   <th className="px-4 py-3 text-right">Students</th>
                   <th className="px-4 py-3 text-right">Rating</th>
                 </tr>
               </thead>
               <tbody>
-                {recentCourses.map((course) => (
-                  <tr key={course._id} className="border-b hover:bg-gray-50">
+                {recentCourses.map((course, idx) => (
+                  <tr key={course._id ?? idx} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900 truncate max-w-xs">{course.title}</td>
-                    <td className="px-4 py-3">{course.category}</td>
-                    <td className="px-4 py-3 text-right">₹{(course.discountPrice || course.price) / 100}</td>
-                    <td className="px-4 py-3 text-right">{course.studentsCount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right font-medium text-yellow-600">{course.rating} ★</td>
+
+                    <td className="px-4 py-3 text-right">${((course.discountPrice ?? course.price ?? 0) / 100).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right">{(course.studentsCount ?? 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right font-medium text-yellow-600">{(course.rating ?? 0).toFixed(1)} ★</td>
                   </tr>
                 ))}
               </tbody>

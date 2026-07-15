@@ -32,7 +32,12 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       accessToken: null,
-      isLoading: false,
+      // Start as true so ProtectedRoute shows a spinner until checkAuth resolves.
+      // This prevents the dashboard from mounting before the access token exists,
+      // which would cause a race between the axios interceptor and checkAuth both
+      // trying to use the single-use refresh token simultaneously (causing one to 401
+      // and wipe the auth state mid-session).
+      isLoading: true,
       error: null,
       
       login: (user, accessToken) => set({ user, accessToken, error: null }),

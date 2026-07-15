@@ -15,6 +15,9 @@ export enum UserRole {
   ADMIN = 'admin'
 }
 
+export type CourseCategory = 'Web Development' | 'Data Science' | 'Mobile Dev' | 'Design' | 'Business' | 'Marketing' | 'IT & Software';
+export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels';
+
 /**
  * Core User type representing both students and admin
  * Used throughout the application for auth and profile management
@@ -33,22 +36,6 @@ export interface User {
   /** ISO date string of account creation */
   createdAt: string;
 }
-
-/**
- * Represents course categories available on the platform
- */
-export type CourseCategory = 
-  | 'Frontend' 
-  | 'Backend' 
-  | 'DevOps' 
-  | 'Data Science' 
-  | 'Mobile' 
-  | 'Design';
-
-/**
- * Course difficulty levels
- */
-export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels';
 
 /**
  * Instructor profile details associated with a course
@@ -92,10 +79,9 @@ export interface Course {
   discountPrice?: number;
   /** Instructor details */
   instructor: Instructor;
-  /** Primary category for filtering and organization */
-  category: CourseCategory;
-  /** Difficulty level */
-  level: CourseLevel;
+  instructorName?: string;
+  instructorBio?: string;
+  instructorAvatar?: string;
   /** Total duration of all lessons in minutes */
   duration: number;
   totalDuration?: number;
@@ -113,6 +99,10 @@ export interface Course {
   updatedAt: string;
   /** Whether course is published and visible */
   isPublished: boolean;
+  /** Course category */
+  category?: string;
+  /** Course difficulty level */
+  level?: string;
 }
 
 /**
@@ -145,12 +135,12 @@ export interface Lesson {
   duration: number;
   /** Video URL (YouTube or mock video) */
   videoUrl: string;
-  /** Whether this lesson is available for preview without enrollment */
-  isPreview: boolean;
   /** Display order within section */
   order: number;
   /** Lesson description for detail view */
   description?: string;
+  /** Whether the lesson is a free preview */
+  isPreview?: boolean;
 }
 
 /**
@@ -185,4 +175,6 @@ export interface LessonProgress {
   isCompleted: boolean;
   /** ISO date when marked complete */
   completedAt?: string;
+  /** Last watched position in seconds */
+  lastPosition?: number;
 }

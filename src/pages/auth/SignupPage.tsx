@@ -12,8 +12,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { BookOpen, Check, X, Loader2 } from "lucide-react";
+import { BookOpen, Check, X, Loader2, User, Mail, ArrowLeft } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
+import axios from "axios";
 
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
@@ -46,6 +47,13 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 export function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  const [step, setStep] = useState<1 | 2>(1);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const { login } = useAuthStore();
   const navigate = useNavigate();
@@ -71,24 +79,51 @@ export function SignupPage() {
     Boolean,
   ).length;
 
+  const uploadFileToR2 = async (file: File): Promise<string> => {
+    // 1. Get Presigned URL from public auth route
+    const { data: presignData } = await api.post('/auth/upload/presign', {
+      type: "picture",
+      filename: file.name,
+      contentType: file.type
+    });
+    const { uploadUrl, key, publicUrl } = presignData.data;
+
+    // 2. Upload to R2 directly with progress
+    await axios.put(uploadUrl, file, {
+      headers: { 'Content-Type': file.type },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        }
+      }
+    });
+
+    return publicUrl || key;
+  };
+
   /**
-   * Mock form submission
+   * Mock form submission -> Real form submission
    */
   const onSubmit = async (data: SignupFormValues) => {
     try {
       setIsLoading(true);
+
+      let avatarUrl = '';
+      if (avatarFile) {
+        avatarUrl = await uploadFileToR2(avatarFile);
+      }
+
       const { data: resData } = await api.post('/auth/signup', {
         name: data.name,
         email: data.email,
-        password: data.password
+        password: data.password,
+        avatar: avatarUrl || undefined
       });
-      const user = resData.data.user;
-      const accessToken = resData.data.accessToken;
       
-      login(user, accessToken);
-      toast.success("Account created successfully!");
-      // Client-side navigation: no full page reload, no re-trigger of checkAuth
-      navigate("/dashboard");
+      setRegisteredEmail(data.email);
+      setStep(2);
+      toast.success(resData.message || "Verification code sent to your email.");
     } catch (err: any) {
       const message = err.response?.data?.message || "Something went wrong";
       toast.error(message);
@@ -96,6 +131,113 @@ export function SignupPage() {
       setIsLoading(false);
     }
   };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationCode.length !== 6) {
+      toast.error("Please enter a valid 6-digit code");
+      return;
+    }
+    
+    try {
+      setIsVerifying(true);
+      const { data: resData } = await api.post('/auth/verify-email', {
+        email: registeredEmail,
+        code: verificationCode
+      });
+      
+      const user = resData.data.user;
+      const accessToken = resData.data.accessToken;
+      
+      login(user, accessToken);
+      toast.success("Account verified successfully!");
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Verification failed");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    try {
+      setIsVerifying(true);
+      await api.post('/auth/resend-code', { email: registeredEmail });
+      toast.success("New verification code sent!");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to resend code");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  if (step === 2) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+          <button 
+            onClick={() => setStep(1)} 
+            className="flex items-center text-sm text-gray-500 hover:text-gray-700 transition"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back
+          </button>
+          
+          <div className="flex flex-col items-center">
+            <div className="h-12 w-12 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+              <Mail className="h-6 w-6 text-primary-600" />
+            </div>
+            <h2 className="text-center text-2xl font-bold tracking-tight text-gray-900">
+              Check your email
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              We've sent a 6-digit verification code to <br/>
+              <span className="font-medium text-gray-900">{registeredEmail}</span>
+            </p>
+          </div>
+
+          <form className="mt-8 space-y-6" onSubmit={handleVerify}>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Verification Code
+              </label>
+              <Input
+                type="text"
+                placeholder="000000"
+                maxLength={6}
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
+                className="text-center text-2xl tracking-widest h-14"
+              />
+            </div>
+
+            <Button type="submit" className="w-full" disabled={isVerifying || verificationCode.length !== 6}>
+              {isVerifying ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Verify Account"
+              )}
+            </Button>
+            
+            <div className="text-center mt-4">
+              <p className="text-sm text-gray-600">
+                Didn't receive the code?{" "}
+                <button 
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={isVerifying}
+                  className="font-medium text-primary-600 hover:text-primary-500 disabled:opacity-50"
+                >
+                  Resend
+                </button>
+              </p>
+              <p className="text-xs text-gray-400 mt-2">Code expires in 15 minutes</p>
+            </div>
+          </form>
+        </div>
+        <ToastContainer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
@@ -131,6 +273,22 @@ export function SignupPage() {
             />
             {errors.name && (
               <p className="mt-1 text-xs text-error">{errors.name.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Profile Picture (Optional)
+            </label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors cursor-pointer relative">
+              <input type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} />
+              <User className="h-6 w-6 text-gray-400 mx-auto mb-1" />
+              {avatarFile ? <p className="text-primary-600 font-medium text-sm">{avatarFile.name}</p> : <p className="text-gray-500 text-sm">Upload Avatar</p>}
+            </div>
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                <div className="bg-primary-600 h-1.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
+              </div>
             )}
           </div>
 

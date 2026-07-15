@@ -15,22 +15,38 @@ import * as React from 'react';
 import { Play, BookOpen, Clock, Award } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/axios';
-import { Course, Enrollment } from '../../types';
+import { Course } from '../../types';
+
+export interface Enrollment {
+  _id: string;
+  course: Course;
+  progressPercentage: number;
+  isActive: boolean;
+}
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 // Assuming a Radix-based Progress primitive exists
 import * as Progress from '@radix-ui/react-progress';
+import { CourseCard } from '../../components/lms/CourseCard';
 
 export function DashboardPage() {
   const { user } = useAuthStore();
-  const [enrollments, setEnrollments] = React.useState<(Enrollment & { course: Course })[]>([]);
+  const [enrollments, setEnrollments] = React.useState<Enrollment[]>([]);
+  const [stats, setStats] = React.useState({ completedLessons: 0, hoursLearned: 0 });
+  const [discoverCourses, setDiscoverCourses] = React.useState<Course[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     if (!user) return;
     
-    api.get('/enrollments/me').then(res => {
-      setEnrollments(res.data.data.enrollments);
+    Promise.all([
+      api.get('/enrollments/me'),
+      api.get('/progress/stats'),
+      api.get('/courses?limit=3')
+    ]).then(([enrollmentsRes, statsRes, coursesRes]) => {
+      setEnrollments(enrollmentsRes.data.data.enrollments);
+      setStats(statsRes.data.data.stats);
+      setDiscoverCourses(coursesRes.data.data.courses || coursesRes.data.data.result || []);
       setIsLoading(false);
     }).catch(console.error);
   }, [user]);
@@ -41,18 +57,14 @@ export function DashboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      {/* Welcome Header */}
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.name.split(' ')[0]}!</h1>
-        <p className="text-gray-500 mt-2">Pick up right where you left off.</p>
-      </div>
+      {/* Removed Welcome Header as per request */}
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
         {[
           { label: 'Enrolled Courses', value: enrollments.length, icon: BookOpen, color: 'text-blue-500 bg-blue-50' },
-          { label: 'Completed Lessons', value: '12', icon: Award, color: 'text-success bg-green-50' },
-          { label: 'Hours Learned', value: '4.5', icon: Clock, color: 'text-warning bg-yellow-50' },
+          { label: 'Completed Lessons', value: stats.completedLessons, icon: Award, color: 'text-success bg-green-50' },
+          { label: 'Hours Learned', value: stats.hoursLearned, icon: Clock, color: 'text-warning bg-yellow-50' },
         ].map((stat) => (
           <div key={stat.label} className="bg-white p-6 rounded-xl border border-gray-200 flex items-center gap-4">
             <div className={`p-4 rounded-full ${stat.color}`}>
@@ -80,17 +92,24 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {enrollments.map(({ course, progressPercentage }) => (
-            <div key={course._id} className="group bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+          {enrollments.map(({ course, progressPercentage, isActive }) => (
+            <div key={course._id} className={`group bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow ${!isActive ? 'opacity-75 grayscale' : ''}`}>
               <div className="aspect-video relative">
                 <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="default" className="rounded-full shadow-lg gap-2" asChild>
-                    <a href={`/learn/${course.slug}`}>
-                      <Play className="h-4 w-4" /> Continue
-                    </a>
-                  </Button>
-                </div>
+                {!isActive && (
+                  <div className="absolute top-2 right-2 bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded">
+                    LOCKED
+                  </div>
+                )}
+                {isActive && (
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="default" className="rounded-full shadow-lg gap-2" asChild>
+                      <a href={`/learn/${course.slug}`}>
+                        <Play className="h-4 w-4" /> Continue
+                      </a>
+                    </Button>
+                  </div>
+                )}
               </div>
               <div className="p-5 space-y-4">
                 <h3 className="font-semibold line-clamp-2">{course.title}</h3>
@@ -109,6 +128,23 @@ export function DashboardPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Discover More Courses */}
+      {discoverCourses.length > 0 && (
+        <div className="mt-16 pt-10 border-t border-gray-200">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-bold text-gray-900">Discover Courses</h2>
+            <Button variant="outline" asChild>
+              <a href="/courses">Browse All Courses</a>
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {discoverCourses.map(course => (
+              <CourseCard key={course._id || course.id} course={course} />
+            ))}
+          </div>
         </div>
       )}
     </div>

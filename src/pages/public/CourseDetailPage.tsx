@@ -20,27 +20,52 @@ export function CourseDetailPage() {
   const courseId = params.id || 'react-masterclass'; 
   const [course, setCourse] = React.useState<Course | null>(null);
   const [isEnrolling, setIsEnrolling] = React.useState(false);
+  const [isEnrolled, setIsEnrolled] = React.useState(false);
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
   React.useEffect(() => {
     api.get(`/courses/${courseId}`).then(res => setCourse(res.data.data.course)).catch(console.error);
-  }, [courseId]);
+    
+    if (user) {
+      api.get('/enrollments/me').then(res => {
+        const enrollments = res.data.data.enrollments;
+        const enrolled = enrollments.some((e: any) => e.course._id === courseId || e.course.slug === courseId || e.course.id === courseId);
+        setIsEnrolled(enrolled);
+      }).catch(console.error);
+    }
+  }, [courseId, user]);
 
   const handleEnroll = async () => {
     if (!user) {
       navigate('/login');
       return;
     }
+    
+    if (isEnrolled) {
+      navigate(`/learn/${courseId}`);
+      return;
+    }
+
     try {
       setIsEnrolling(true);
-      // Stripe mock enrollment
-      await api.post('/enrollments', { courseId: course?._id || course?.id });
-      // Redirect to dashboard
-      navigate('/dashboard');
+      
+      const price = course?.discountPrice || course?.price || 0;
+      
+      if (price > 0) {
+        // Paid course -> Create Stripe Checkout Session
+        const res = await api.post('/payments/create-checkout-session', { courseId: course?._id || course?.id });
+        if (res.data.data.checkoutUrl) {
+          window.location.href = res.data.data.checkoutUrl;
+        }
+      } else {
+        // Free course -> Direct enrollment
+        await api.post('/enrollments', { courseId: course?._id || course?.id });
+        navigate(`/learn/${course?.slug || courseId}`);
+      }
     } catch (err) {
       console.error(err);
-      alert('Failed to enroll. You might already be enrolled.');
+      alert('Failed to enroll or initiate payment. Please try again.');
     } finally {
       setIsEnrolling(false);
     }
@@ -56,11 +81,6 @@ export function CourseDetailPage() {
       <div className="bg-gray-900 text-white py-12 md:py-20">
         <div className="container mx-auto px-4 md:px-6 grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2 space-y-6">
-            <div className="flex gap-2 text-sm font-medium text-primary-300">
-              <span>{course.category}</span>
-              <span>•</span>
-              <span>{course.level}</span>
-            </div>
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">{course.title}</h1>
             <p className="text-lg text-gray-300">{course.description}</p>
             
@@ -75,7 +95,7 @@ export function CourseDetailPage() {
               </div>
             </div>
             
-            <p className="text-sm text-gray-400">Created by <span className="underline">{course.instructor.name}</span></p>
+            <p className="text-sm text-gray-400">Created by <span className="underline">{course.instructorName || course.instructor.name}</span></p>
           </div>
 
           {/* Floating Course Sales Card */}
@@ -90,14 +110,14 @@ export function CourseDetailPage() {
               
               <div className="p-6 space-y-6">
                 <div className="flex items-end gap-3">
-                  <span className="text-3xl font-bold">₹{(course.discountPrice || course.price) / 100}</span>
+                  <span className="text-3xl font-bold">${(course.discountPrice || course.price) / 100}</span>
                   {course.discountPrice && (
-                    <span className="text-lg text-gray-500 line-through mb-1">₹{course.price / 100}</span>
+                    <span className="text-lg text-gray-500 line-through mb-1">${course.price / 100}</span>
                   )}
                 </div>
                 
                 <Button size="lg" className="w-full text-lg h-12" onClick={handleEnroll} disabled={isEnrolling}>
-                  {isEnrolling ? 'Processing...' : 'Enroll Now'}
+                  {isEnrolling ? 'Processing...' : (isEnrolled ? 'Continue Learning' : 'Enroll Now')}
                 </Button>
                 
                 <div className="space-y-3 text-sm text-gray-600">
@@ -113,6 +133,16 @@ export function CourseDetailPage() {
 
       {/* Main Content Detail */}
       <div className="container mx-auto px-4 md:px-6 py-12 md:max-w-4xl md:mx-0">
+        
+        {course.trailerUrl && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold mb-6">Course Trailer</h2>
+            <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg border border-gray-200">
+               <video src={course.trailerUrl} controls className="w-full h-full object-contain" poster={course.thumbnail} />
+            </div>
+          </div>
+        )}
+
         <h2 className="text-2xl font-bold mb-6">Course Content</h2>
         
         {/* Accordion-style Curriculum Mock */}
@@ -129,10 +159,10 @@ export function CourseDetailPage() {
 
         <h2 className="text-2xl font-bold mb-6">About the Instructor</h2>
         <div className="flex flex-col md:flex-row gap-6 items-start p-6 border border-gray-200 rounded-xl bg-white">
-          <img src={course.instructor.avatar} alt={course.instructor.name} className="w-24 h-24 rounded-full object-cover" />
+          <img src={course.instructorAvatar || course.instructor.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(course.instructorName || course.instructor.name)} alt={course.instructorName || course.instructor.name} className="w-24 h-24 rounded-full object-cover" />
           <div>
-            <h3 className="text-xl font-bold">{course.instructor.name}</h3>
-            <p className="text-gray-500 mb-4">{course.instructor.bio || 'Instructor at VeoLMS'}</p>
+            <h3 className="text-xl font-bold">{course.instructorName || course.instructor.name}</h3>
+            <p className="text-gray-500 mb-4">{course.instructorBio || course.instructor.bio || 'Instructor at VeoLMS'}</p>
             <div className="flex gap-4 text-sm font-medium text-gray-700">
               <span>{course.instructor.studentsCount?.toLocaleString() || 0} Students</span>
               <span>{course.instructor.coursesCount || 0} Courses</span>
