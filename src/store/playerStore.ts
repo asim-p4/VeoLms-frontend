@@ -51,7 +51,7 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
   setPlaying: (playing) => set({ isPlaying: playing }),
   
-  setVolume: (volume) => set((state) => {
+  setVolume: (volume) => set(() => {
     // If setting volume > 0, ensure we are unmuted
     return { volume, isMuted: volume === 0 ? true : false };
   }),

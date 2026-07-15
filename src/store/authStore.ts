@@ -3,53 +3,90 @@
  * Manages user authentication state and session.
  * 
  * DESIGN DECISIONS:
- * - Only ONE admin account exists, created via seed, not registration.
- * - Single login endpoint for all users (role-based redirect handled at router level).
- * - Zustand persist middleware used to keep user logged in across page reloads.
- * 
- * SECURITY NOTES:
- * - In production: Token validation MUST happen server-side.
- * - In production: Passwords are NEVER stored in state (omitted in mockApi).
- * - Current mock: For demonstration purposes only.
+ * - Access token is kept IN MEMORY ONLY (not persisted) for security.
+ * - Refresh token is in HttpOnly cookie (handled by browser/axios).
+ * - User object is persisted to localStorage for fast UI rendering on reload.
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '../types';
+import { api } from '../lib/axios';
 
 interface AuthState {
-  /** The currently authenticated user, null if logged out */
   user: User | null;
-  /** Global authentication loading state */
+  accessToken: string | null;
   isLoading: boolean;
-  /** Global authentication error message */
   error: string | null;
   
   // Actions
-  /** Action to set the authenticated user upon successful login */
-  login: (user: User) => void;
-  /** Action to clear the session */
+  login: (user: User, accessToken: string) => void;
   logout: () => void;
-  /** Set loading state during auth operations */
+  setAccessToken: (accessToken: string) => void;
   setLoading: (isLoading: boolean) => void;
-  /** Set error messages for login failures */
   setError: (error: string | null) => void;
+  checkAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      isLoading: false,
+      accessToken: null,
+      // Start as true so ProtectedRoute shows a spinner until checkAuth resolves.
+      // This prevents the dashboard from mounting before the access token exists,
+      // which would cause a race between the axios interceptor and checkAuth both
+      // trying to use the single-use refresh token simultaneously (causing one to 401
+      // and wipe the auth state mid-session).
+      isLoading: true,
       error: null,
       
-      login: (user) => set({ user, error: null }),
-      logout: () => set({ user: null }),
+      login: (user, accessToken) => set({ user, accessToken, error: null }),
+      
+      logout: async () => {
+        try {
+          // Attempt server logout to clear refresh cookie and invalidate token
+          await api.post('/auth/logout');
+        } catch (error) {
+          console.error("Logout failed", error);
+        } finally {
+          // Always clear local state
+          set({ user: null, accessToken: null });
+        }
+      },
+      
+      setAccessToken: (accessToken) => set({ accessToken }),
       setLoading: (isLoading) => set({ isLoading }),
-      setError: (error) => set({ error })
+      setError: (error) => set({ error }),
+      
+      checkAuth: async () => {
+        set({ isLoading: true });
+        try {
+          // Step 1: Exchange the HttpOnly refresh token cookie for a new access token.
+          // Uses raw axios to bypass the interceptor (which would loop if this 401s).
+          const { data } = await api.post('/auth/refresh');
+          const token = data.data.accessToken as string;
+          
+          // Step 2: Store the token in memory immediately.
+          set({ accessToken: token });
+          
+          // Step 3: Fetch the user profile. Pass the token explicitly in the
+          // header to avoid any timing issue with Zustand state propagation.
+          const userRes = await api.get('/auth/me', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          set({ user: userRes.data.data.user, error: null });
+        } catch {
+          // Refresh failed — not logged in. Silently clear state.
+          // Do NOT call logout() here: that would make an API call that also fails.
+          set({ user: null, accessToken: null });
+        } finally {
+          set({ isLoading: false });
+        }
+      }
     }),
     {
-      name: 'veolms-auth-storage', // Key in localStorage
-      // We only want to persist the user object, not loading/error states
+      name: 'veolms-auth-storage',
+      // Only persist the user object. Access token must be renewed on every refresh.
       partialize: (state) => ({ user: state.user }),
     }
   )

@@ -9,7 +9,7 @@
  */
 import * as React from 'react';
 import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react';
-import { api } from '../../lib/mockApi';
+import { api } from '../../lib/axios';
 import { Course } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -20,15 +20,20 @@ export function CourseManagementPage() {
   const [search, setSearch] = React.useState('');
 
   React.useEffect(() => {
-    api.getCourses().then(setCourses);
+    api.get('/admin/courses').then(res => setCourses(res.data.data.courses)).catch(console.error);
   }, []);
 
   const filteredCourses = courses.filter(c => c.title.toLowerCase().includes(search.toLowerCase()));
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
-      setCourses(courses.filter(c => c.id !== id));
-      // In real app, trigger api.deleteCourse(id)
+      try {
+        await api.delete(`/admin/courses/${id}`);
+        setCourses(courses.filter(c => (c._id || c.id) !== id));
+      } catch (err) {
+        console.error('Failed to delete course', err);
+        alert('Failed to delete course');
+      }
     }
   };
 
@@ -68,14 +73,16 @@ export function CourseManagementPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {filteredCourses.map((course) => (
-              <tr key={course.id} className="hover:bg-gray-50 transition-colors">
+            {filteredCourses.map((course, idx) => (
+              <tr key={course._id ?? course.id ?? idx} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <img src={course.thumbnail} alt="" className="h-10 w-16 object-cover rounded shadow-sm" />
+                    {course.thumbnail && (
+                      <img src={course.thumbnail} alt="" className="h-10 w-16 object-cover rounded shadow-sm" />
+                    )}
                     <div>
                       <p className="font-medium text-gray-900 line-clamp-1">{course.title}</p>
-                      <p className="text-xs text-gray-500">{course.category}</p>
+
                     </div>
                   </div>
                 </td>
@@ -84,16 +91,16 @@ export function CourseManagementPage() {
                     {course.isPublished ? 'Published' : 'Draft'}
                   </Badge>
                 </td>
-                <td className="px-6 py-4 font-medium">₹{(course.price / 100).toLocaleString()}</td>
-                <td className="px-6 py-4">{course.studentsCount.toLocaleString()}</td>
+                <td className="px-6 py-4 font-medium">${((course.price ?? 0) / 100).toLocaleString()}</td>
+                <td className="px-6 py-4">{(course.studentsCount ?? 0).toLocaleString()}</td>
                 <td className="px-6 py-4 text-right space-x-2">
                   <Button variant="ghost" size="icon" asChild>
-                    <a href={`/courses/${course.id}`} target="_blank" title="View Public Page"><Eye className="h-4 w-4 text-gray-500" /></a>
+                    <a href={`/courses/${course.slug ?? course.id}`} target="_blank" title="View Public Page"><Eye className="h-4 w-4 text-gray-500" /></a>
                   </Button>
-                  <Button variant="ghost" size="icon" title="Edit Course">
-                    <Edit className="h-4 w-4 text-blue-500" />
+                  <Button variant="ghost" size="icon" title="Edit Course" asChild>
+                    <a href={`/admin/courses/${course._id ?? course.id}/edit`}><Edit className="h-4 w-4 text-blue-500" /></a>
                   </Button>
-                  <Button variant="ghost" size="icon" title="Delete Course" onClick={() => handleDelete(course.id)}>
+                  <Button variant="ghost" size="icon" title="Delete Course" onClick={() => handleDelete(course._id ?? course.id)}>
                     <Trash2 className="h-4 w-4 text-error" />
                   </Button>
                 </td>

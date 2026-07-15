@@ -17,10 +17,9 @@
  * 
  * STATE MANAGEMENT:
  * - Syncs local `<video>` ref state with global `usePlayerStore`
- * 
- * TODO: Implement actual HLS loading for production streaming.
  */
 import * as React from 'react';
+import Hls from 'hls.js';
 import { 
   Play, Pause, Volume2, VolumeX, Maximize, Minimize, 
   Settings, HelpCircle, SkipBack, SkipForward 
@@ -31,11 +30,13 @@ import { cn } from '../../lib/utils';
 interface VideoPlayerProps {
   src?: string;
   poster?: string;
+  startPosition?: number;
   onNextLesson?: () => void;
   onPrevLesson?: () => void;
+  onTimeUpdate?: (time: number) => void;
 }
 
-export function VideoPlayer({ src, poster, onNextLesson, onPrevLesson }: VideoPlayerProps) {
+export function VideoPlayer({ src, poster, startPosition, onNextLesson, onPrevLesson, onTimeUpdate }: VideoPlayerProps) {
   // Global Store State
   const { 
     isPlaying, volume, isMuted, playbackRate, isFullscreen,
@@ -44,15 +45,30 @@ export function VideoPlayer({ src, poster, onNextLesson, onPrevLesson }: VideoPl
 
   // Local Component Refs & State
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const hlsRef = React.useRef<Hls | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const progressRef = React.useRef<HTMLDivElement>(null);
   
   const [currentTime, setCurrentTime] = React.useState(0);
   const [duration, setDuration] = React.useState(0);
+  const [bufferedPercent, setBufferedPercent] = React.useState(0);
   const [showControls, setShowControls] = React.useState(true);
   const [showShortcuts, setShowShortcuts] = React.useState(false);
+  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = React.useState(false);
+  const isInitialLoad = React.useRef(true);
   
+  const speedMenuRef = React.useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = React.useRef<NodeJS.Timeout>();
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (speedMenuRef.current && !speedMenuRef.current.contains(event.target as Node)) {
+        setIsSpeedMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [speedMenuRef]);
 
   /**
    * Formats seconds into MM:SS
@@ -73,6 +89,45 @@ export function VideoPlayer({ src, poster, onNextLesson, onPrevLesson }: VideoPl
       else videoRef.current.pause();
     }
   }, [isPlaying, setPlaying]);
+
+  /**
+   * Initializes HLS.js if the source is an m3u8 playlist
+   */
+  React.useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !src) return;
+
+    if (src.includes('.m3u8') && Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+      hlsRef.current = hls;
+
+      hls.loadSource(src);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (isPlaying) {
+          video.play().catch(console.error);
+        }
+      });
+
+      return () => {
+        hls.destroy();
+      };
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native HLS support (Safari)
+      video.src = src;
+      video.addEventListener('loadedmetadata', () => {
+        if (isPlaying) video.play().catch(console.error);
+      });
+    } else {
+      // Regular mp4 fallback
+      video.src = src;
+      if (isPlaying) video.play().catch(console.error);
+    }
+  }, [src]);
 
   /**
    * Syncs global volume state with actual video element
@@ -176,12 +231,32 @@ export function VideoPlayer({ src, poster, onNextLesson, onPrevLesson }: VideoPl
       {/* Video Element */}
       <video
         ref={videoRef}
-        src={src || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"}
         poster={poster}
         className="w-full h-full cursor-pointer"
+        controlsList="nodownload"
+        onContextMenu={(e) => e.preventDefault()}
         onClick={togglePlay}
-        onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
-        onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+        onTimeUpdate={() => {
+          const time = videoRef.current?.currentTime || 0;
+          setCurrentTime(time);
+          if (onTimeUpdate) onTimeUpdate(time);
+        }}
+        onProgress={() => {
+          if (videoRef.current && videoRef.current.buffered.length > 0) {
+            const bufferedEnd = videoRef.current.buffered.end(videoRef.current.buffered.length - 1);
+            const duration = videoRef.current.duration;
+            if (duration > 0) {
+              setBufferedPercent((bufferedEnd / duration) * 100);
+            }
+          }
+        }}
+        onLoadedMetadata={() => {
+          setDuration(videoRef.current?.duration || 0);
+          if (startPosition && videoRef.current && isInitialLoad.current) {
+            videoRef.current.currentTime = startPosition;
+            isInitialLoad.current = false;
+          }
+        }}
         onEnded={() => {
           setPlaying(false);
           if (onNextLesson) onNextLesson();
@@ -201,6 +276,12 @@ export function VideoPlayer({ src, poster, onNextLesson, onPrevLesson }: VideoPl
           className="w-full h-1.5 bg-white/30 rounded-full mb-4 cursor-pointer relative group/progress"
           onClick={handleProgressClick}
         >
+          {/* Buffering Bar */}
+          <div 
+            className="absolute top-0 left-0 h-full bg-white/50 rounded-full transition-all duration-300"
+            style={{ width: `${bufferedPercent}%` }}
+          />
+          {/* Main Progress Bar */}
           <div 
             className="absolute top-0 left-0 h-full bg-primary-500 rounded-full"
             style={{ width: `${(currentTime / duration) * 100 || 0}%` }}
@@ -248,11 +329,15 @@ export function VideoPlayer({ src, poster, onNextLesson, onPrevLesson }: VideoPl
 
           <div className="flex items-center gap-4">
             {/* Speed Selector */}
-            <div className="relative group/speed flex items-center">
-              <button className="text-sm font-medium hover:text-primary-400 transition">
+            <div className="relative flex items-center" ref={speedMenuRef}>
+              <button 
+                className="text-sm font-medium hover:text-primary-400 transition"
+                onClick={() => setIsSpeedMenuOpen(!isSpeedMenuOpen)}
+              >
                 {playbackRate}x
               </button>
-              <div className="absolute bottom-full right-0 mb-2 hidden flex-col bg-gray-900/90 rounded border border-gray-700 group-hover/speed:flex overflow-hidden">
+              {isSpeedMenuOpen && (
+                <div className="absolute bottom-full right-0 mb-2 flex flex-col bg-gray-900/90 rounded border border-gray-700 overflow-hidden">
                 {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
                   <button 
                     key={rate}
@@ -266,6 +351,7 @@ export function VideoPlayer({ src, poster, onNextLesson, onPrevLesson }: VideoPl
                   </button>
                 ))}
               </div>
+              )}
             </div>
 
             <button onClick={() => setShowShortcuts(true)} className="hover:text-primary-400 transition" aria-label="Keyboard Shortcuts">
