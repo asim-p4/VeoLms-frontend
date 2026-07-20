@@ -62,7 +62,7 @@ export function SettingsPage() {
       filename: file.name,
       contentType: file.type
     });
-    const { uploadUrl, key, publicUrl } = presignData.data;
+    const { uploadUrl, key } = presignData.data;
 
     // 2. Upload to R2 directly with progress
     await axios.put(uploadUrl, file, {
@@ -75,7 +75,7 @@ export function SettingsPage() {
       }
     });
 
-    return publicUrl || key;
+    return key;
   };
 
   const onProfileSubmit = async (data: ProfileFormValues) => {

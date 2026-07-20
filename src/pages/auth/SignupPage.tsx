@@ -86,7 +86,7 @@ export function SignupPage() {
       filename: file.name,
       contentType: file.type
     });
-    const { uploadUrl, key, publicUrl } = presignData.data;
+    const { uploadUrl, key } = presignData.data;
 
     // 2. Upload to R2 directly with progress
     await axios.put(uploadUrl, file, {
@@ -99,7 +99,7 @@ export function SignupPage() {
       }
     });
 
-    return publicUrl || key;
+    return key;
   };
 
   /**

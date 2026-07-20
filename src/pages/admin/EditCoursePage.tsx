@@ -71,21 +71,20 @@ export function EditCoursePage() {
     if (!newLessonData.title.trim()) return;
     try {
       setIsUploading(true);
-      let finalVideoUrl = newLessonData.videoUrl;
-
-      if (videoFile) {
+      
+      const uploadFileToR2 = async (file: File, type: string): Promise<string> => {
         // 1. Get Presigned URL
-        const presignRes = await api.post('/admin/upload/presign', {
-          type: 'video',
-          filename: videoFile.name,
-          contentType: videoFile.type || 'video/mp4'
+        const { data: presignData } = await api.post('/admin/upload/presign', {
+          type,
+          filename: file.name,
+          contentType: file.type || 'video/mp4'
         });
-        const { uploadUrl, key } = presignRes.data.data;
+        const { uploadUrl, key } = presignData.data;
 
         // 2. Upload to R2 directly (bypassing our server)
-        await axios.put(uploadUrl, videoFile, {
+        await axios.put(uploadUrl, file, {
           headers: {
-            'Content-Type': videoFile.type || 'video/mp4'
+            'Content-Type': file.type || 'video/mp4'
           },
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total) {
@@ -94,7 +93,12 @@ export function EditCoursePage() {
             }
           }
         });
-        finalVideoUrl = key;
+        return key;
+      };
+
+      let finalVideoUrl = newLessonData.videoUrl;
+      if (videoFile) {
+        finalVideoUrl = await uploadFileToR2(videoFile, 'video');
       }
 
       const section = course?.sections.find(s => (s._id || s.id) === sectionId);
