@@ -159,7 +159,7 @@ export function CreateCoursePage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Course Thumbnail (Image)</label>
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative">
-                <input type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)} />
+                <input type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)} autoComplete="off" data-lpignore="true" data-1p-ignore="true" />
                 <UploadCloud className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 {thumbnailFile ? <p className="text-primary-600 font-medium">{thumbnailFile.name}</p> : <p className="text-gray-500 text-sm">Click or drag image to upload</p>}
               </div>
@@ -173,7 +173,7 @@ export function CreateCoursePage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Course Trailer (Video)</label>
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative">
-                <input type="file" accept="video/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setTrailerFile(e.target.files?.[0] || null)} />
+                <input type="file" accept="video/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setTrailerFile(e.target.files?.[0] || null)} autoComplete="off" data-lpignore="true" data-1p-ignore="true" />
                 <Video className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 {trailerFile ? <p className="text-primary-600 font-medium">{trailerFile.name}</p> : <p className="text-gray-500 text-sm">Click or drag video to upload</p>}
               </div>
@@ -213,7 +213,7 @@ export function CreateCoursePage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Instructor Avatar (Image)</label>
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 transition-colors cursor-pointer relative">
-                <input type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} />
+                <input type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} autoComplete="off" data-lpignore="true" data-1p-ignore="true" />
                 <UploadCloud className="h-6 w-6 text-gray-400 mx-auto mb-1" />
                 {avatarFile ? <p className="text-primary-600 font-medium text-sm">{avatarFile.name}</p> : <p className="text-gray-500 text-sm">Upload Avatar</p>}
               </div>

@@ -68,7 +68,14 @@ export function EditCoursePage() {
   };
 
   const handleCreateLesson = async (sectionId: string) => {
-    if (!newLessonData.title.trim()) return;
+    if (!newLessonData.title.trim()) {
+      alert('Please enter a lesson title');
+      return;
+    }
+    if (!videoFile && !newLessonData.videoUrl) {
+      alert('Please select a video file');
+      return;
+    }
     try {
       setIsUploading(true);
       
