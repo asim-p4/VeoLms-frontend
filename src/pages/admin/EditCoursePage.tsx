@@ -24,6 +24,14 @@ export function EditCoursePage() {
   const [isUploading, setIsUploading] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState(0);
 
+  // Edit States
+  const [isEditingCourse, setIsEditingCourse] = React.useState(false);
+  const [editCourseData, setEditCourseData] = React.useState<Partial<Course>>({});
+  const [editingSectionId, setEditingSectionId] = React.useState<string | null>(null);
+  const [editSectionTitle, setEditSectionTitle] = React.useState('');
+  const [editingLessonId, setEditingLessonId] = React.useState<string | null>(null);
+  const [editLessonData, setEditLessonData] = React.useState({ title: '', duration: 0, videoUrl: '' });
+
   React.useEffect(() => {
     fetchCourse();
   }, [id]);
@@ -138,6 +146,65 @@ export function EditCoursePage() {
     }
   };
 
+  const handleUpdateCourse = async () => {
+    try {
+      setIsUploading(true);
+      await api.patch(`/admin/courses/${id}`, editCourseData);
+      setIsEditingCourse(false);
+      fetchCourse();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update course');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleUpdateSection = async (sectionId: string) => {
+    if (!editSectionTitle.trim()) return;
+    try {
+      await api.patch(`/admin/sections/${sectionId}`, { title: editSectionTitle });
+      setEditingSectionId(null);
+      fetchCourse();
+    } catch (err) {
+      alert('Failed to update section');
+    }
+  };
+
+  const handleUpdateLesson = async (lessonId: string) => {
+    if (!editLessonData.title.trim()) return;
+    try {
+      setIsUploading(true);
+      let finalVideoUrl = editLessonData.videoUrl;
+      if (videoFile) {
+        // We reuse the same logic
+        const { data: presignData } = await api.post('/admin/upload/presign', {
+          type: 'video',
+          filename: videoFile.name,
+          contentType: videoFile.type || 'video/mp4'
+        });
+        await axios.put(presignData.data.uploadUrl, videoFile, {
+          headers: { 'Content-Type': videoFile.type || 'video/mp4' },
+          onUploadProgress: (p) => { if (p.total) setUploadProgress(Math.round((p.loaded * 100) / p.total)); }
+        });
+        finalVideoUrl = presignData.data.key;
+      }
+      await api.patch(`/admin/lessons/${lessonId}`, {
+        title: editLessonData.title,
+        duration: editLessonData.duration,
+        videoUrl: finalVideoUrl
+      });
+      setEditingLessonId(null);
+      setVideoFile(null);
+      setUploadProgress(0);
+      fetchCourse();
+    } catch (err) {
+      alert('Failed to update lesson');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   if (isLoading || !course) return <div className="p-8 text-center">Loading course...</div>;
 
   return (
@@ -167,6 +234,76 @@ export function EditCoursePage() {
         </div>
       </div>
 
+      {/* Course Overview Card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Course Details</CardTitle>
+          <Button variant="outline" size="sm" onClick={() => {
+            setEditCourseData({
+              title: course.title,
+              description: course.description,
+              price: course.price,
+              discountPrice: course.discountPrice,
+              thumbnail: course.thumbnail
+            });
+            setIsEditingCourse(!isEditingCourse);
+          }}>
+            {isEditingCourse ? 'Cancel Edit' : 'Edit Details'}
+          </Button>
+        </CardHeader>
+        {isEditingCourse ? (
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Title</label>
+              <Input value={editCourseData.title || ''} onChange={e => setEditCourseData({...editCourseData, title: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <Input value={editCourseData.description || ''} onChange={e => setEditCourseData({...editCourseData, description: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Price (Cents)</label>
+                <Input type="number" value={editCourseData.price || 0} onChange={e => setEditCourseData({...editCourseData, price: Number(e.target.value)})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Discount Price (Cents)</label>
+                <Input type="number" value={editCourseData.discountPrice || ''} onChange={e => setEditCourseData({...editCourseData, discountPrice: Number(e.target.value) || undefined})} />
+              </div>
+            </div>
+            <Button onClick={handleUpdateCourse} disabled={isUploading}>{isUploading ? 'Saving...' : 'Save Course Details'}</Button>
+          </CardContent>
+        ) : (
+          <CardContent className="grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-4">
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Title</h4>
+                <p className="font-medium">{course.title}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Description</h4>
+                <p className="text-sm">{course.description}</p>
+              </div>
+              <div className="flex gap-6">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500">Price</h4>
+                  <p className="font-medium">${(course.price / 100).toFixed(2)}</p>
+                </div>
+                {course.discountPrice && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Discount</h4>
+                    <p className="font-medium">${(course.discountPrice / 100).toFixed(2)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div>
+              <img src={course.thumbnail} alt="Thumbnail" className="w-full aspect-video object-cover rounded-md border border-gray-200" />
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Curriculum Builder */}
       <Card>
         <CardHeader>
@@ -179,13 +316,24 @@ export function EditCoursePage() {
               <div key={sectionId} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
                 {/* Section Header */}
                 <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-200">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-1">
                     <GripVertical className="h-5 w-5 text-gray-400 cursor-grab" />
-                    <span className="font-semibold text-gray-900">Section {sIdx + 1}: {section.title}</span>
+                    {editingSectionId === sectionId ? (
+                      <div className="flex items-center gap-2 flex-1 max-w-md">
+                        <Input value={editSectionTitle} onChange={e => setEditSectionTitle(e.target.value)} className="h-8" />
+                        <Button size="sm" onClick={() => handleUpdateSection(sectionId)}>Save</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setEditingSectionId(null)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <span className="font-semibold text-gray-900">Section {sIdx + 1}: {section.title}</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="sm" onClick={() => setActiveSectionForLesson(sectionId)}>
                       <Plus className="h-4 w-4 mr-1" /> Add Lesson
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => { setEditingSectionId(sectionId); setEditSectionTitle(section.title); }}>
+                      <span className="text-gray-500 text-xs font-bold">EDIT</span>
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDeleteSection(sectionId)}>
                       <Trash2 className="h-4 w-4 text-error" />
@@ -198,19 +346,55 @@ export function EditCoursePage() {
                   {section.lessons?.map((lesson, lIdx) => {
                     const lessonId = lesson._id || lesson.id;
                     return (
-                      <div key={lessonId} className="px-4 py-3 flex items-center justify-between group hover:bg-gray-50">
-                        <div className="flex items-center gap-3">
-                          <GripVertical className="h-4 w-4 text-gray-300 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <Video className="h-4 w-4 text-primary-500" />
-                          <span className="text-sm font-medium text-gray-700">Lesson {lIdx + 1}: {lesson.title}</span>
+                      <React.Fragment key={lessonId}>
+                        <div className="px-4 py-3 flex items-center justify-between group hover:bg-gray-50">
+                          <div className="flex items-center gap-3">
+                            <GripVertical className="h-4 w-4 text-gray-300 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Video className="h-4 w-4 text-primary-500" />
+                            <span className="text-sm font-medium text-gray-700">Lesson {lIdx + 1}: {lesson.title}</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span>{lesson.duration} min</span>
+                            <Button variant="ghost" size="icon" onClick={() => { setEditingLessonId(lessonId); setEditLessonData({ title: lesson.title, duration: lesson.duration || 0, videoUrl: lesson.videoUrl || '' }); }}>
+                              <span className="text-gray-500 text-xs font-bold">EDIT</span>
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteLesson(lessonId)}>
+                              <Trash2 className="h-4 w-4 text-error" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span>{lesson.duration} min</span>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteLesson(lessonId)}>
-                            <Trash2 className="h-4 w-4 text-error" />
-                          </Button>
-                        </div>
-                      </div>
+                        {editingLessonId === lessonId && (
+                          <div className="p-4 bg-gray-50/50 border-t border-gray-100 space-y-3 pl-12">
+                            <Input placeholder="Lesson Title" value={editLessonData.title} onChange={e => setEditLessonData({...editLessonData, title: e.target.value})} />
+                            <p className="text-xs text-gray-500">Upload a new video to replace the existing one, or leave blank to keep it.</p>
+                            <Input type="file" accept="video/*" onChange={e => {
+                                const file = e.target.files?.[0] || null;
+                                setVideoFile(file);
+                                if (file) {
+                                  const videoElement = document.createElement('video');
+                                  videoElement.preload = 'metadata';
+                                  videoElement.onloadedmetadata = () => {
+                                    window.URL.revokeObjectURL(videoElement.src);
+                                    setEditLessonData(prev => ({...prev, duration: Math.ceil(videoElement.duration / 60)}));
+                                  };
+                                  videoElement.src = URL.createObjectURL(file);
+                                }
+                              }} disabled={isUploading} />
+                            {isUploading && (
+                              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                                <div className="bg-primary-600 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
+                                <p className="text-xs text-gray-500 mt-1 text-right">{uploadProgress}% Uploading...</p>
+                              </div>
+                            )}
+                            <div className="flex justify-end gap-2 pt-2">
+                              <Button variant="outline" size="sm" onClick={() => { setEditingLessonId(null); setVideoFile(null); }} disabled={isUploading}>Cancel</Button>
+                              <Button size="sm" onClick={() => handleUpdateLesson(lessonId)} disabled={isUploading}>
+                                {isUploading ? 'Saving...' : 'Save Lesson'}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </React.Fragment>
                     );
                   })}
 

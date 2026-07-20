@@ -37,6 +37,7 @@ export function CourseCard({ course }: CourseCardProps) {
             src={course.trailerUrl}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
             loop
+            muted
             playsInline
           />
         )}
