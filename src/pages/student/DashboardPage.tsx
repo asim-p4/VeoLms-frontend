@@ -29,27 +29,48 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import * as Progress from '@radix-ui/react-progress';
 import { CourseCard } from '../../components/lms/CourseCard';
 
+import { useSearchParams } from 'react-router-dom';
+
 export function DashboardPage() {
   const { user } = useAuthStore();
   const [enrollments, setEnrollments] = React.useState<Enrollment[]>([]);
   const [stats, setStats] = React.useState({ completedLessons: 0, hoursLearned: 0 });
   const [discoverCourses, setDiscoverCourses] = React.useState<Course[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   React.useEffect(() => {
     if (!user) return;
     
-    Promise.all([
-      api.get('/enrollments/me'),
-      api.get('/progress/stats'),
-      api.get('/courses?limit=3')
-    ]).then(([enrollmentsRes, statsRes, coursesRes]) => {
-      setEnrollments(enrollmentsRes.data.data.enrollments);
-      setStats(statsRes.data.data.stats);
-      setDiscoverCourses(coursesRes.data.data.courses || coursesRes.data.data.result || []);
-      setIsLoading(false);
-    }).catch(console.error);
-  }, [user]);
+    const loadData = async () => {
+      try {
+        const sessionId = searchParams.get('session_id');
+        if (sessionId) {
+          // Synchronously verify payment to ensure instant enrollment even if webhook is delayed/failed
+          await api.get(`/payments/verify-session?session_id=${sessionId}`);
+          // Remove session_id from URL so it doesn't verify again on refresh
+          searchParams.delete('session_id');
+          setSearchParams(searchParams, { replace: true });
+        }
+
+        const [enrollmentsRes, statsRes, coursesRes] = await Promise.all([
+          api.get('/enrollments/me'),
+          api.get('/progress/stats'),
+          api.get('/courses?limit=3')
+        ]);
+        
+        setEnrollments(enrollmentsRes.data.data.enrollments);
+        setStats(statsRes.data.data.stats);
+        setDiscoverCourses(coursesRes.data.data.courses || coursesRes.data.data.result || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [user, searchParams, setSearchParams]);
 
   if (isLoading) {
     return <div className="p-8"><Skeleton className="h-64 w-full rounded-xl" /></div>;
