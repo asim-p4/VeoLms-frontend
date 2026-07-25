@@ -42,6 +42,11 @@ export function CourseDetailPage() {
       return;
     }
     
+    if (user.role?.toLowerCase() === 'admin') {
+      alert("Admins cannot enroll in courses. This is a preview mode.");
+      return;
+    }
+    
     if (isEnrolled) {
       navigate(`/learn/${courseId}`);
       return;
@@ -116,9 +121,15 @@ export function CourseDetailPage() {
                   )}
                 </div>
                 
-                <Button size="lg" className="w-full text-lg h-12" onClick={handleEnroll} disabled={isEnrolling}>
-                  {isEnrolling ? 'Processing...' : (isEnrolled ? 'Continue Learning' : 'Enroll Now')}
-                </Button>
+                {user?.role?.toLowerCase() === 'admin' ? (
+                  <div className="w-full text-center py-3 bg-gray-100 text-gray-500 font-medium rounded-md border border-dashed border-gray-300">
+                    Admin Preview Mode
+                  </div>
+                ) : (
+                  <Button size="lg" className="w-full text-lg h-12" onClick={handleEnroll} disabled={isEnrolling}>
+                    {isEnrolling ? 'Processing...' : (isEnrolled ? 'Continue Learning' : 'Enroll Now')}
+                  </Button>
+                )}
                 
                 <div className="space-y-3 text-sm text-gray-600">
                   <div className="flex items-center gap-3"><Clock className="h-4 w-4" /> {course.totalDuration ? (course.totalDuration / 60).toFixed(1) : 0} hours on-demand video</div>

@@ -22,6 +22,9 @@ import { CourseCard } from '../../components/lms/CourseCard';
 export function CoursesPage() {
   const [courses, setCourses] = React.useState<Course[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [page, setPage] = React.useState(1);
+  const [totalPages, setTotalPages] = React.useState(1);
   
   // Connect to Zustand store
   const { 
@@ -29,20 +32,47 @@ export function CoursesPage() {
     sortBy, setSortBy 
   } = useCourseStore();
 
-  React.useEffect(() => {
-    setIsLoading(true);
-    // Build query params
+  const fetchCourses = (targetPage: number) => {
+    if (targetPage === 1) setIsLoading(true);
+    else setIsLoadingMore(true);
+
     const params = new URLSearchParams();
     if (searchQuery) params.append('search', searchQuery);
     if (sortBy) params.append('sort', sortBy);
+    params.append('page', targetPage.toString());
     
     api.get(`/courses?${params.toString()}`)
       .then(res => {
-        setCourses(res.data.data.courses);
+        const fetchedCourses = res.data.data.courses || res.data.data.result || [];
+        const fetchedTotal = res.data.data.totalPages || 1;
+        
+        if (targetPage === 1) {
+          setCourses(fetchedCourses);
+        } else {
+          setCourses(prev => [...prev, ...fetchedCourses]);
+        }
+        setTotalPages(fetchedTotal);
       })
       .catch(console.error)
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      });
+  };
+
+  React.useEffect(() => {
+    setPage(1); // Reset to page 1 whenever filters change
+    fetchCourses(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, sortBy]);
+
+  const handleLoadMore = () => {
+    if (page < totalPages && !isLoadingMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchCourses(nextPage);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6 md:py-12 flex flex-col gap-8">
@@ -95,12 +125,28 @@ export function CoursesPage() {
             <Button variant="outline" onClick={() => useCourseStore.getState().clearFilters()}>Clear all filters</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Same Course Card markup from HomePage could be abstracted to a <CourseCard> component */}
-            {courses.map(course => (
-              <CourseCard key={course._id || course.id} course={course} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Same Course Card markup from HomePage could be abstracted to a <CourseCard> component */}
+              {courses.map(course => (
+                <CourseCard key={course._id || course.id} course={course} />
+              ))}
+            </div>
+
+            {page < totalPages && (
+              <div className="mt-12 flex justify-center">
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="min-w-[200px]"
+                >
+                  {isLoadingMore ? 'Loading...' : 'Load More Courses'}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
