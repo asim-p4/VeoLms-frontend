@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { Loader2, CheckCircle } from 'lucide-react';
@@ -10,7 +10,7 @@ export interface HlsUploaderRef {
   cancelUpload: () => void;
 }
 
-export const HlsVideoUploader = forwardRef<HlsUploaderRef, {}>((props, ref) => {
+export const HlsVideoUploader = forwardRef<HlsUploaderRef, {}>((_props, ref) => {
   const [loaded, setLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -216,3 +216,4 @@ export const HlsVideoUploader = forwardRef<HlsUploaderRef, {}>((props, ref) => {
     </div>
   );
 });
+
