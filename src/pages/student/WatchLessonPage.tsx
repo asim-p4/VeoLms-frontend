@@ -31,6 +31,7 @@ export function WatchLessonPage() {
   // Real lesson tracking
   const [activeLessonId, setActiveLessonId] = React.useState<string | null>(null);
   const [activeLesson, setActiveLesson] = React.useState<Lesson | null>(null);
+  const [hlsToken, setHlsToken] = React.useState<string | undefined>();
   const [progressData, setProgressData] = React.useState<Record<string, LessonProgress>>({});
   const [isLoadingLesson, setIsLoadingLesson] = React.useState(false);
 
@@ -91,6 +92,7 @@ export function WatchLessonPage() {
     setIsLoadingLesson(true);
     api.get(`/lessons/${activeLessonId}`).then(res => {
       setActiveLesson(res.data.data.lesson);
+      setHlsToken(res.data.data.hlsToken);
       // Ensure we trigger auto-play when a new lesson is loaded
       setTimeout(() => setPlaying(true), 100);
     }).catch(console.error)
@@ -177,6 +179,7 @@ export function WatchLessonPage() {
           ) : (
             <VideoPlayer 
               src={activeLesson?.videoUrl}
+              hlsToken={hlsToken}
               startPosition={progressData[activeLessonId || '']?.lastPosition || 0}
               onTimeUpdate={(time: number) => { currentVideoTime.current = time; }}
               onNextLesson={getNextPrevLesson('next') ? handleNextLesson : undefined}

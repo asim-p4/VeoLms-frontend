@@ -30,13 +30,14 @@ import { cn } from '../../lib/utils';
 interface VideoPlayerProps {
   src?: string;
   poster?: string;
+  hlsToken?: string;
   startPosition?: number;
   onNextLesson?: () => void;
   onPrevLesson?: () => void;
   onTimeUpdate?: (time: number) => void;
 }
 
-export function VideoPlayer({ src, poster, startPosition, onNextLesson, onPrevLesson, onTimeUpdate }: VideoPlayerProps) {
+export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson, onPrevLesson, onTimeUpdate }: VideoPlayerProps) {
   // Global Store State
   const { 
     isPlaying, volume, isMuted, playbackRate, isFullscreen,
@@ -101,6 +102,12 @@ export function VideoPlayer({ src, poster, startPosition, onNextLesson, onPrevLe
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
+        xhrSetup: function(xhr) {
+          xhr.withCredentials = true; // Kept for legacy browsers
+          if (hlsToken) {
+            xhr.setRequestHeader('Authorization', `Bearer ${hlsToken}`);
+          }
+        }
       });
       hlsRef.current = hls;
 

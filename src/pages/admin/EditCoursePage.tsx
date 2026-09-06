@@ -6,7 +6,7 @@ import { ArrowLeft, Plus, Trash2, Video, GripVertical } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
-import axios from 'axios';
+import { HlsVideoUploader, HlsUploaderRef } from '../../components/lms/HlsVideoUploader';
 
 export function EditCoursePage() {
   const { id } = useParams();
@@ -20,9 +20,10 @@ export function EditCoursePage() {
   // New Lesson State
   const [activeSectionForLesson, setActiveSectionForLesson] = React.useState<string | null>(null);
   const [newLessonData, setNewLessonData] = React.useState({ title: '', duration: 0, videoUrl: '' });
-  const [videoFile, setVideoFile] = React.useState<File | null>(null);
+  const [selectedVideoFile, setSelectedVideoFile] = React.useState<File | null>(null);
+  const uploaderRef = React.useRef<HlsUploaderRef>(null);
+  const editUploaderRef = React.useRef<HlsUploaderRef>(null);
   const [isUploading, setIsUploading] = React.useState(false);
-  const [uploadProgress, setUploadProgress] = React.useState(0);
 
   // Edit States
   const [isEditingCourse, setIsEditingCourse] = React.useState(false);
@@ -76,60 +77,36 @@ export function EditCoursePage() {
   };
 
   const handleCreateLesson = async (sectionId: string) => {
-    if (!newLessonData.title.trim()) {
-      alert('Please enter a lesson title');
-      return;
-    }
-    if (!videoFile && !newLessonData.videoUrl) {
-      alert('Please select a video file');
+    if (!newLessonData.title.trim() || (!newLessonData.videoUrl && !selectedVideoFile)) {
+      alert('Please enter a title and select a video');
       return;
     }
     try {
       setIsUploading(true);
       
-      const uploadFileToR2 = async (file: File, type: string): Promise<string> => {
-        // 1. Get Presigned URL
-        const { data: presignData } = await api.post('/admin/upload/presign', {
-          type,
-          filename: file.name,
-          contentType: file.type || 'video/mp4'
-        });
-        const { uploadUrl, key } = presignData.data;
-
-        // 2. Upload to R2 directly (bypassing our server)
-        await axios.put(uploadUrl, file, {
-          headers: {
-            'Content-Type': file.type || 'video/mp4'
-          },
-          onUploadProgress: (progressEvent) => {
-            if (progressEvent.total) {
-              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              setUploadProgress(percentCompleted);
-            }
-          }
-        });
-        return key;
-      };
-
       let finalVideoUrl = newLessonData.videoUrl;
-      if (videoFile) {
-        finalVideoUrl = await uploadFileToR2(videoFile, 'video');
+      let finalDuration = newLessonData.duration;
+      
+      if (selectedVideoFile && uploaderRef.current) {
+        const { key, duration } = await uploaderRef.current.startUpload(selectedVideoFile);
+        finalVideoUrl = key;
+        finalDuration = duration;
       }
 
       const section = course?.sections.find(s => (s._id || s.id) === sectionId);
       await api.post(`/admin/sections/${sectionId}/lessons`, {
         ...newLessonData,
         videoUrl: finalVideoUrl,
+        duration: finalDuration,
         order: (section?.lessons?.length || 0) + 1
       });
       setActiveSectionForLesson(null);
       setNewLessonData({ title: '', duration: 0, videoUrl: '' });
-      setVideoFile(null);
-      setUploadProgress(0);
+      setSelectedVideoFile(null);
       fetchCourse();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to create lesson. Please ensure your R2 credentials are set up in .env.');
+      alert(err.message || 'Failed to create lesson.');
     } finally {
       setIsUploading(false);
     }
@@ -172,34 +149,32 @@ export function EditCoursePage() {
   };
 
   const handleUpdateLesson = async (lessonId: string) => {
-    if (!editLessonData.title.trim()) return;
+    if (!editLessonData.title.trim()) {
+      alert('Please enter a lesson title');
+      return;
+    }
     try {
       setIsUploading(true);
       let finalVideoUrl = editLessonData.videoUrl;
-      if (videoFile) {
-        // We reuse the same logic
-        const { data: presignData } = await api.post('/admin/upload/presign', {
-          type: 'video',
-          filename: videoFile.name,
-          contentType: videoFile.type || 'video/mp4'
-        });
-        await axios.put(presignData.data.uploadUrl, videoFile, {
-          headers: { 'Content-Type': videoFile.type || 'video/mp4' },
-          onUploadProgress: (p) => { if (p.total) setUploadProgress(Math.round((p.loaded * 100) / p.total)); }
-        });
-        finalVideoUrl = presignData.data.key;
+      let finalDuration = editLessonData.duration;
+      
+      if (selectedVideoFile && editUploaderRef.current) {
+        const { key, duration } = await editUploaderRef.current.startUpload(selectedVideoFile);
+        finalVideoUrl = key;
+        finalDuration = duration;
       }
+
       await api.patch(`/admin/lessons/${lessonId}`, {
         title: editLessonData.title,
-        duration: editLessonData.duration,
+        duration: finalDuration,
         videoUrl: finalVideoUrl
       });
       setEditingLessonId(null);
-      setVideoFile(null);
-      setUploadProgress(0);
+      setSelectedVideoFile(null);
       fetchCourse();
-    } catch (err) {
-      alert('Failed to update lesson');
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to update lesson');
     } finally {
       setIsUploading(false);
     }
@@ -234,7 +209,6 @@ export function EditCoursePage() {
         </div>
       </div>
 
-      {/* Course Overview Card */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Course Details</CardTitle>
@@ -304,7 +278,6 @@ export function EditCoursePage() {
         )}
       </Card>
 
-      {/* Curriculum Builder */}
       <Card>
         <CardHeader>
           <CardTitle>Curriculum Builder</CardTitle>
@@ -314,7 +287,6 @@ export function EditCoursePage() {
             const sectionId = section._id || section.id;
             return (
               <div key={sectionId} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-                {/* Section Header */}
                 <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-200">
                   <div className="flex items-center gap-3 flex-1">
                     <GripVertical className="h-5 w-5 text-gray-400 cursor-grab" />
@@ -341,7 +313,6 @@ export function EditCoursePage() {
                   </div>
                 </div>
 
-                {/* Lessons */}
                 <div className="divide-y divide-gray-100">
                   {section.lessons?.map((lesson, lIdx) => {
                     const lessonId = lesson._id || lesson.id;
@@ -367,27 +338,29 @@ export function EditCoursePage() {
                           <div className="p-4 bg-gray-50/50 border-t border-gray-100 space-y-3 pl-12">
                             <Input placeholder="Lesson Title" value={editLessonData.title} onChange={e => setEditLessonData({...editLessonData, title: e.target.value})} />
                             <p className="text-xs text-gray-500">Upload a new video to replace the existing one, or leave blank to keep it.</p>
-                            <Input type="file" accept="video/*" onChange={e => {
-                                const file = e.target.files?.[0] || null;
-                                setVideoFile(file);
-                                if (file) {
-                                  const videoElement = document.createElement('video');
-                                  videoElement.preload = 'metadata';
-                                  videoElement.onloadedmetadata = () => {
-                                    window.URL.revokeObjectURL(videoElement.src);
-                                    setEditLessonData(prev => ({...prev, duration: Math.ceil(videoElement.duration / 60)}));
-                                  };
-                                  videoElement.src = URL.createObjectURL(file);
-                                }
-                              }} disabled={isUploading} />
-                            {isUploading && (
-                              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                                <div className="bg-primary-600 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
-                                <p className="text-xs text-gray-500 mt-1 text-right">{uploadProgress}% Uploading...</p>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-2">
+                              <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-md font-medium text-sm transition-colors border border-slate-300">
+                                <Video className="w-4 h-4 inline-block mr-2" />
+                                {selectedVideoFile ? 'Change Video' : 'Select Video'}
+                                <input 
+                                  type="file" 
+                                  accept="video/mp4,video/x-m4v,video/*" 
+                                  className="hidden" 
+                                  onChange={e => {
+                                    if (e.target.files && e.target.files.length > 0) {
+                                      setSelectedVideoFile(e.target.files[0]);
+                                    }
+                                  }}
+                                />
+                              </label>
+                              {selectedVideoFile && <span className="text-sm text-slate-600 truncate max-w-[200px]">{selectedVideoFile.name}</span>}
+                            </div>
+                            <HlsVideoUploader ref={editUploaderRef} />
                             <div className="flex justify-end gap-2 pt-2">
-                              <Button variant="outline" size="sm" onClick={() => { setEditingLessonId(null); setVideoFile(null); }} disabled={isUploading}>Cancel</Button>
+                              <Button variant="outline" size="sm" onClick={() => { 
+                                if (isUploading) editUploaderRef.current?.cancelUpload();
+                                setEditingLessonId(null); 
+                              }}>Cancel</Button>
                               <Button size="sm" onClick={() => handleUpdateLesson(lessonId)} disabled={isUploading}>
                                 {isUploading ? 'Saving...' : 'Save Lesson'}
                               </Button>
@@ -406,40 +379,30 @@ export function EditCoursePage() {
                         value={newLessonData.title}
                         onChange={e => setNewLessonData({...newLessonData, title: e.target.value})}
                       />
-                            <Input 
-                              type="file" 
-                              accept="video/*"
-                              onChange={e => {
-                                const file = e.target.files?.[0] || null;
-                                setVideoFile(file);
-                                if (file) {
-                                  // Extract video duration automatically
-                                  const videoElement = document.createElement('video');
-                                  videoElement.preload = 'metadata';
-                                  videoElement.onloadedmetadata = () => {
-                                    window.URL.revokeObjectURL(videoElement.src);
-                                    const durationMinutes = Math.ceil(videoElement.duration / 60);
-                                    setNewLessonData(prev => ({...prev, duration: durationMinutes}));
-                                  };
-                                  videoElement.src = URL.createObjectURL(file);
-                                }
-                              }}
-                              className="w-full"
-                              disabled={isUploading}
-                            />
-                        
-                        {isUploading && (
-                          <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                            <div className="bg-primary-600 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
-                            <p className="text-xs text-gray-500 mt-1 text-right">{uploadProgress}% Uploading to R2...</p>
-                          </div>
-                        )}
+                      <div className="flex items-center gap-2">
+                        <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-md font-medium text-sm transition-colors border border-slate-300">
+                          <Video className="w-4 h-4 inline-block mr-2" />
+                          {selectedVideoFile ? 'Change Video' : 'Select Video'}
+                          <input 
+                            type="file" 
+                            accept="video/mp4,video/x-m4v,video/*" 
+                            className="hidden" 
+                            onChange={e => {
+                              if (e.target.files && e.target.files.length > 0) {
+                                setSelectedVideoFile(e.target.files[0]);
+                              }
+                            }}
+                          />
+                        </label>
+                        {selectedVideoFile && <span className="text-sm text-slate-600 truncate max-w-[200px]">{selectedVideoFile.name}</span>}
+                      </div>
+                      <HlsVideoUploader ref={uploaderRef} />
                       <div className="flex justify-end gap-2 pt-2">
                         <Button variant="outline" size="sm" onClick={() => {
+                          if (isUploading) uploaderRef.current?.cancelUpload();
                           setActiveSectionForLesson(null);
-                          setVideoFile(null);
-                        }} disabled={isUploading}>Cancel</Button>
-                        <Button size="sm" onClick={() => handleCreateLesson(sectionId)} disabled={isUploading}>
+                        }}>Cancel</Button>
+                        <Button size="sm" onClick={() => handleCreateLesson(sectionId)} disabled={isUploading || (!newLessonData.videoUrl && !selectedVideoFile)}>
                           {isUploading ? 'Saving...' : 'Save Lesson'}
                         </Button>
                       </div>

@@ -17,9 +17,16 @@ export default defineConfig({
   },
   server: {
     open: true,
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+    },
   },
   build: {
     outDir: 'dist',
     sourcemap: true,
+  },
+  optimizeDeps: {
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
   },
 });

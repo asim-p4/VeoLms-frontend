@@ -68,7 +68,7 @@ export function CreateCoursePage() {
       // Upload media concurrently if selected
       const uploadPromises = [];
       if (thumbnailFile) uploadPromises.push(uploadFileToR2(thumbnailFile, 'picture', 'thumbnail').then(url => thumbnailUrl = url));
-      if (trailerFile) uploadPromises.push(uploadFileToR2(trailerFile, 'video', 'trailer').then(url => trailerUrl = url));
+      if (trailerFile) uploadPromises.push(uploadFileToR2(trailerFile, 'trailer', 'trailer').then(url => trailerUrl = url));
       if (avatarFile) uploadPromises.push(uploadFileToR2(avatarFile, 'picture', 'avatar').then(url => instructorAvatarUrl = url));
       
       await Promise.all(uploadPromises);
