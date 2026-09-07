@@ -17,6 +17,7 @@ const createCourseSchema = z.object({
   instructorBio: z.string().min(10, 'Instructor bio must be at least 10 characters'),
   price: z.number({ invalid_type_error: "Price must be a number" }).min(0, 'Price must be 0 or greater'),
   discountPrice: z.number({ invalid_type_error: "Discount price must be a number" }).min(0, 'Discount must be 0 or greater').optional().or(z.literal('')),
+  isPublished: z.boolean().default(false).optional(),
 });
 type CreateCourseData = z.infer<typeof createCourseSchema>;
 
@@ -73,14 +74,15 @@ export function CreateCoursePage() {
       
       await Promise.all(uploadPromises);
 
-      // Create Course
+      // Create Course (starts in Draft mode as per user configuration)
       const res = await api.post('/admin/courses', {
         ...data,
-        price: data.price * 100, // convert USD to cents
-        discountPrice: data.discountPrice ? Number(data.discountPrice) * 100 : undefined,
+        price: Math.round(data.price * 100), // convert USD to cents
+        discountPrice: data.discountPrice ? Math.round(Number(data.discountPrice) * 100) : undefined,
         thumbnail: thumbnailUrl || undefined,
         trailerUrl: trailerUrl || undefined,
         instructorAvatar: instructorAvatarUrl || undefined,
+        isPublished: false,
       });
 
       const courseId = res.data.data.course._id || res.data.data.course.id;
@@ -146,6 +148,18 @@ export function CreateCoursePage() {
                 {errors.discountPrice && <p className="text-red-500 text-xs mt-1">{errors.discountPrice.message as string}</p>}
               </div>
             </div>
+
+            <div className="flex items-center gap-3 pt-2 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+              <input 
+                type="checkbox" 
+                id="isPublished" 
+                {...register('isPublished')} 
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer" 
+              />
+              <label htmlFor="isPublished" className="text-sm font-medium text-gray-800 cursor-pointer select-none">
+                Publish immediately (Make course visible to students right away)
+              </label>
+            </div>
           </CardContent>
         </Card>
 
@@ -173,7 +187,24 @@ export function CreateCoursePage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Course Trailer (Video)</label>
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative">
-                <input type="file" accept="video/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setTrailerFile(e.target.files?.[0] || null)} autoComplete="off" data-lpignore="true" data-1p-ignore="true" />
+                <input 
+                  type="file" 
+                  accept="video/mp4,video/webm,video/ogg,video/quicktime,video/*" 
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && !file.type.startsWith('video/')) {
+                      alert('Please select a valid video file (MP4, WebM) for the course trailer, not an image.');
+                      e.target.value = '';
+                      setTrailerFile(null);
+                      return;
+                    }
+                    setTrailerFile(file || null);
+                  }} 
+                  autoComplete="off" 
+                  data-lpignore="true" 
+                  data-1p-ignore="true" 
+                />
                 <Video className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 {trailerFile ? <p className="text-primary-600 font-medium">{trailerFile.name}</p> : <p className="text-gray-500 text-sm">Click or drag video to upload</p>}
               </div>

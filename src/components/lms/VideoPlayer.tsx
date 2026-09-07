@@ -22,7 +22,7 @@ import * as React from 'react';
 import Hls from 'hls.js';
 import { 
   Play, Pause, Volume2, VolumeX, Maximize, Minimize, 
-  Settings, HelpCircle, SkipBack, SkipForward 
+  Settings, HelpCircle, SkipBack, SkipForward, Check 
 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { cn } from '../../lib/utils';
@@ -35,9 +35,15 @@ interface VideoPlayerProps {
   onNextLesson?: () => void;
   onPrevLesson?: () => void;
   onTimeUpdate?: (time: number) => void;
+  onRetry?: () => void;
 }
 
-export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson, onPrevLesson, onTimeUpdate }: VideoPlayerProps) {
+interface QualityOption {
+  label: '360p' | '144p';
+  levelIndex: number;
+}
+
+export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson, onPrevLesson, onTimeUpdate, onRetry }: VideoPlayerProps) {
   // Global Store State
   const { 
     isPlaying, volume, isMuted, playbackRate, isFullscreen,
@@ -56,9 +62,17 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
   const [showControls, setShowControls] = React.useState(true);
   const [showShortcuts, setShowShortcuts] = React.useState(false);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = React.useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [availableQualities, setAvailableQualities] = React.useState<QualityOption[]>([]);
+  const [selectedQuality, setSelectedQuality] = React.useState<'360p' | '144p'>(() => {
+    const saved = localStorage.getItem('veolms_video_quality');
+    return saved === '144p' ? '144p' : '360p'; // by default select 360p
+  });
+  const [videoError, setVideoError] = React.useState<string | null>(null);
   const isInitialLoad = React.useRef(true);
   
   const speedMenuRef = React.useRef<HTMLDivElement>(null);
+  const settingsMenuRef = React.useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = React.useRef<NodeJS.Timeout>();
 
   React.useEffect(() => {
@@ -66,10 +80,22 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
       if (speedMenuRef.current && !speedMenuRef.current.contains(event.target as Node)) {
         setIsSpeedMenuOpen(false);
       }
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [speedMenuRef]);
+  }, []);
+
+  const handleQualityChange = (option: QualityOption) => {
+    setSelectedQuality(option.label);
+    localStorage.setItem('veolms_video_quality', option.label);
+    if (hlsRef.current) {
+      hlsRef.current.currentLevel = option.levelIndex; // Instantly switches to target resolution
+    }
+    setIsSettingsOpen(false);
+  };
 
   /**
    * Formats seconds into MM:SS
@@ -86,24 +112,31 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
    */
   React.useEffect(() => {
     if (videoRef.current) {
-      if (isPlaying) videoRef.current.play().catch(() => setPlaying(false));
-      else videoRef.current.pause();
+      if (isPlaying) {
+        const promise = videoRef.current.play();
+        if (promise !== undefined) {
+          promise.catch(() => setPlaying(false));
+        }
+      } else {
+        videoRef.current.pause();
+      }
     }
   }, [isPlaying, setPlaying]);
 
   /**
-   * Initializes HLS.js if the source is an m3u8 playlist
+   * Initializes HLS.js if the source is an m3u8 playlist or standard video playback
    */
   React.useEffect(() => {
     const video = videoRef.current;
     if (!video || !src) return;
+    setVideoError(null);
 
     if (src.includes('.m3u8') && Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
         xhrSetup: function(xhr) {
-          xhr.withCredentials = true; // Kept for legacy browsers
+          xhr.withCredentials = true;
           if (hlsToken) {
             xhr.setRequestHeader('Authorization', `Bearer ${hlsToken}`);
           }
@@ -114,25 +147,72 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
       hls.loadSource(src);
       hls.attachMedia(video);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
+        // Extract 360p and 144p levels from manifest
+        const options: QualityOption[] = [];
+        const levels = data.levels || hls.levels || [];
+
+        // Check for 360p first (default priority)
+        const idx360 = levels.findIndex((lvl: any) => lvl.height === 360 || (lvl.name && lvl.name.includes('360')));
+        if (idx360 !== -1) {
+          options.push({ label: '360p', levelIndex: idx360 });
+        }
+
+        // Check for 144p
+        const idx144 = levels.findIndex((lvl: any) => lvl.height === 144 || (lvl.name && lvl.name.includes('144')));
+        if (idx144 !== -1) {
+          options.push({ label: '144p', levelIndex: idx144 });
+        }
+
+        // Fallback if exact height metadata wasn't matched
+        if (options.length === 0 && levels.length > 0) {
+          if (levels.length >= 2) {
+            options.push({ label: '360p', levelIndex: 1 });
+            options.push({ label: '144p', levelIndex: 0 });
+          } else {
+            options.push({ label: '360p', levelIndex: 0 });
+          }
+        }
+
+        setAvailableQualities(options);
+
+        // Lock to user's preferred quality (defaults to 360p) - strictly disables auto ABR
+        const savedPreference = localStorage.getItem('veolms_video_quality') || '360p';
+        const targetOption = options.find(o => o.label === savedPreference) || options[0];
+
+        if (targetOption) {
+          hls.currentLevel = targetOption.levelIndex; // Strict manual lock, never auto
+          setSelectedQuality(targetOption.label);
+        }
+
         if (isPlaying) {
-          video.play().catch(console.error);
+          video.play().catch(() => setPlaying(false));
+        }
+      });
+
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          setVideoError("HLS playback error occurred. Click to retry.");
         }
       });
 
       return () => {
         hls.destroy();
       };
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    } else if (video.canPlayType('application/vnd.apple.mpegurl') && src.includes('.m3u8')) {
       // Native HLS support (Safari)
       video.src = src;
+      video.load();
       video.addEventListener('loadedmetadata', () => {
-        if (isPlaying) video.play().catch(console.error);
+        if (isPlaying) video.play().catch(() => setPlaying(false));
       });
     } else {
       // Regular mp4 fallback
       video.src = src;
-      if (isPlaying) video.play().catch(console.error);
+      video.load();
+      if (isPlaying) {
+        video.play().catch(() => setPlaying(false));
+      }
     }
   }, [src]);
 
@@ -231,18 +311,25 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
   return (
     <div 
       ref={containerRef}
-      className="relative group bg-black w-full aspect-video overflow-hidden font-sans"
+      className="relative group bg-black w-full aspect-video overflow-hidden font-sans select-none"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
       {/* Video Element */}
       <video
         ref={videoRef}
+        src={src && !src.includes('.m3u8') ? src : undefined}
         poster={poster}
-        className="w-full h-full cursor-pointer"
+        className="w-full h-full cursor-pointer object-contain"
         controlsList="nodownload"
+        preload="auto"
+        playsInline
         onContextMenu={(e) => e.preventDefault()}
         onClick={togglePlay}
+        onDurationChange={(e) => {
+          const d = e.currentTarget.duration;
+          if (d && !isNaN(d) && d > 0) setDuration(d);
+        }}
         onTimeUpdate={() => {
           const time = videoRef.current?.currentTime || 0;
           setCurrentTime(time);
@@ -251,18 +338,26 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
         onProgress={() => {
           if (videoRef.current && videoRef.current.buffered.length > 0) {
             const bufferedEnd = videoRef.current.buffered.end(videoRef.current.buffered.length - 1);
-            const duration = videoRef.current.duration;
-            if (duration > 0) {
-              setBufferedPercent((bufferedEnd / duration) * 100);
+            const d = videoRef.current.duration;
+            if (d > 0) {
+              setBufferedPercent((bufferedEnd / d) * 100);
             }
           }
         }}
-        onLoadedMetadata={() => {
-          setDuration(videoRef.current?.duration || 0);
+        onLoadedMetadata={(e) => {
+          const d = e.currentTarget.duration;
+          if (d && !isNaN(d) && d > 0) setDuration(d);
           if (startPosition && videoRef.current && isInitialLoad.current) {
             videoRef.current.currentTime = startPosition;
             isInitialLoad.current = false;
           }
+        }}
+        onCanPlay={(e) => {
+          const d = e.currentTarget.duration;
+          if (d && !isNaN(d) && d > 0) setDuration(d);
+        }}
+        onError={() => {
+          setVideoError("Unable to load video stream. Click retry or check your network.");
         }}
         onEnded={() => {
           setPlaying(false);
@@ -270,10 +365,48 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
         }}
       />
 
+      {/* Prominent Center Play Button Overlay */}
+      {!isPlaying && !videoError && (
+        <div 
+          className="absolute inset-0 flex items-center justify-center cursor-pointer z-10 bg-black/30 hover:bg-black/40 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePlay();
+          }}
+          title="Play video"
+        >
+          <div className="w-20 h-20 rounded-full bg-primary-600/90 hover:bg-primary-600 text-white flex items-center justify-center shadow-2xl hover:scale-110 transition-transform duration-200">
+            <Play className="h-10 w-10 fill-current ml-1 text-white" />
+          </div>
+        </div>
+      )}
+
+      {/* Video Error Overlay */}
+      {videoError && (
+        <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center text-white p-6 z-30 space-y-4">
+          <p className="text-center font-medium max-w-md text-red-400">{videoError}</p>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setVideoError(null);
+              if (onRetry) {
+                onRetry();
+              } else if (videoRef.current) {
+                videoRef.current.load();
+                videoRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+              }
+            }}
+            className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 rounded-lg text-sm font-semibold transition shadow-lg"
+          >
+            Retry Playback
+          </button>
+        </div>
+      )}
+
       {/* Overlay Controls */}
       <div 
         className={cn(
-          "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-12 px-4 pb-4 transition-opacity duration-300",
+          "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-12 px-4 pb-4 transition-opacity duration-300 z-20",
           showControls || !isPlaying ? "opacity-100" : "opacity-0"
         )}
       >
@@ -365,9 +498,49 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
               <HelpCircle className="h-5 w-5" />
             </button>
             
-            <button aria-label="Settings" className="hover:text-primary-400 transition">
-              <Settings className="h-5 w-5" />
-            </button>
+            {/* Quality Settings Selector */}
+            <div className="relative flex items-center" ref={settingsMenuRef}>
+              <button 
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)} 
+                className={cn(
+                  "hover:text-primary-400 transition flex items-center gap-1",
+                  isSettingsOpen ? "text-primary-400" : ""
+                )} 
+                aria-label="Video Quality Settings"
+                title="Quality Settings"
+              >
+                <Settings className="h-5 w-5" />
+              </button>
+
+              {isSettingsOpen && (
+                <div className="absolute bottom-full right-0 mb-2 w-36 bg-gray-900/95 backdrop-blur-md rounded-lg border border-gray-700 shadow-2xl overflow-hidden py-1 z-30 font-sans">
+                  <div className="px-3 py-1.5 text-[11px] font-semibold tracking-wider text-gray-400 uppercase border-b border-gray-800">
+                    Quality
+                  </div>
+                  {availableQualities.length > 0 ? (
+                    availableQualities.map(option => (
+                      <button
+                        key={option.label}
+                        onClick={() => handleQualityChange(option)}
+                        className={cn(
+                          "w-full px-3 py-2 text-xs flex items-center justify-between hover:bg-white/10 transition text-left",
+                          selectedQuality === option.label ? "text-primary-400 font-semibold bg-primary-950/40" : "text-gray-200"
+                        )}
+                      >
+                        <span>{option.label}</span>
+                        {selectedQuality === option.label && (
+                          <Check className="h-3.5 w-3.5 text-primary-400" />
+                        )}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-gray-400">
+                      Standard Quality
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <button onClick={handleFullscreen} className="hover:text-primary-400 transition" aria-label="Fullscreen">
               {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}

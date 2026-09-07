@@ -113,10 +113,10 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {enrollments.map(({ course, progressPercentage, isActive }) => (
-            <div key={course._id} className={`group bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow ${!isActive ? 'opacity-75 grayscale' : ''}`}>
+          {enrollments.map(({ course, progressPercentage, isActive }, idx) => (
+            <div key={course?._id || (course as any)?.id || idx} className={`group bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow ${!isActive ? 'opacity-75 grayscale' : ''}`}>
               <div className="aspect-video relative">
-                <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
+                <img src={course?.thumbnail} alt={course?.title} className="w-full h-full object-cover" />
                 {!isActive && (
                   <div className="absolute top-2 right-2 bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded">
                     LOCKED
@@ -125,7 +125,7 @@ export function DashboardPage() {
                 {isActive && (
                   <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="default" className="rounded-full shadow-lg gap-2" asChild>
-                      <a href={`/learn/${course.slug}`}>
+                      <a href={`/learn/${course?.slug || course?._id || (course as any)?.id}`}>
                         <Play className="h-4 w-4" /> Continue
                       </a>
                     </Button>

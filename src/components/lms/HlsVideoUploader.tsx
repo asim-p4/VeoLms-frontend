@@ -17,6 +17,7 @@ export const HlsVideoUploader = forwardRef<HlsUploaderRef, {}>((_props, ref) => 
   const [statusText, setStatusText] = useState('');
 
   const ffmpegRef = useRef(new FFmpeg());
+  const loadPromiseRef = useRef<Promise<void> | null>(null);
 
   // Load FFmpeg WebAssembly on mount
   useEffect(() => {
@@ -24,28 +25,43 @@ export const HlsVideoUploader = forwardRef<HlsUploaderRef, {}>((_props, ref) => 
   }, []);
 
   const load = async () => {
-    setStatusText('Loading Video Processor Engine...');
-    try {
-      const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/esm';
-      const ffmpeg = ffmpegRef.current;
-
-      ffmpeg.on('progress', ({ progress }) => {
-        // progress is 0 to 1
-        setProgress(Math.round(progress * 100));
-      });
-
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
-      });
-
+    if (ffmpegRef.current.loaded) {
       setLoaded(true);
-      setStatusText('');
-    } catch (err) {
-      console.error(err);
-      setStatusText('Error loading engine');
+      return;
     }
+    if (loadPromiseRef.current) {
+      return loadPromiseRef.current;
+    }
+
+    setStatusText('Loading Video Processor Engine...');
+    const p = (async () => {
+      try {
+        const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/esm';
+        const ffmpeg = ffmpegRef.current;
+
+        ffmpeg.on('progress', ({ progress }) => {
+          // progress is 0 to 1
+          setProgress(Math.round(progress * 100));
+        });
+
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
+        });
+
+        setLoaded(true);
+        setStatusText('');
+      } catch (err) {
+        console.error(err);
+        setStatusText('Error loading engine');
+      } finally {
+        loadPromiseRef.current = null;
+      }
+    })();
+
+    loadPromiseRef.current = p;
+    return p;
   };
 
   const extractDuration = (file: File): Promise<number> => {
@@ -67,6 +83,12 @@ export const HlsVideoUploader = forwardRef<HlsUploaderRef, {}>((_props, ref) => 
       try {
         const duration = await extractDuration(file);
         const ffmpeg = ffmpegRef.current;
+
+        // If not loaded yet, wait for load to complete
+        if (!ffmpeg.loaded) {
+          setStatusText('Loading Video Processor Engine...');
+          await load();
+        }
 
         setStatusText('Writing file to memory...');
         await ffmpeg.writeFile('input.mp4', await fetchFile(file));
@@ -90,6 +112,7 @@ export const HlsVideoUploader = forwardRef<HlsUploaderRef, {}>((_props, ref) => 
           await ffmpeg.exec([
             '-i', 'input.mp4',
             '-threads', '5',
+            '-preset', 'ultrafast',
             '-vf', `scale=${res.scale}`,
             '-c:v', 'libx264',
             '-c:a', 'aac',
@@ -178,7 +201,9 @@ export const HlsVideoUploader = forwardRef<HlsUploaderRef, {}>((_props, ref) => 
     },
     cancelUpload: () => {
       // Force terminate the FFmpeg WebAssembly process
-      ffmpegRef.current.terminate();
+      try {
+        ffmpegRef.current.terminate();
+      } catch (e) {}
       setIsLoading(false);
       setStatusText('Cancelled');
       // Re-initialize FFmpeg so it can be used again without refreshing the page
@@ -216,4 +241,3 @@ export const HlsVideoUploader = forwardRef<HlsUploaderRef, {}>((_props, ref) => 
     </div>
   );
 });
-

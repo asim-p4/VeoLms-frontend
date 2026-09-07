@@ -60,8 +60,14 @@ export function WatchLessonPage() {
       });
       setProgressData(pMap);
 
-      const enrollments = enrollmentsRes.data.data.enrollments;
-      const thisEnrollment = enrollments.find((e: any) => e.course._id === c._id || e.course.id === c.id || e.course === c._id);
+      const enrollments = enrollmentsRes.data.data.enrollments || [];
+      const thisEnrollment = enrollments.find((e: any) => 
+        e.course?._id === c._id || 
+        e.course?.id === c.id || 
+        e.course?._id === c.id || 
+        e.course?.slug === c.slug ||
+        e.course === c._id
+      );
       
       let initialLessonId = typeof thisEnrollment?.lastAccessedLesson === 'object' ? thisEnrollment.lastAccessedLesson?._id : thisEnrollment?.lastAccessedLesson;
 
@@ -86,17 +92,19 @@ export function WatchLessonPage() {
     }).catch(console.error);
   }, [params.id]);
 
-  React.useEffect(() => {
-    if (!activeLessonId) return;
-    
+  const fetchLesson = React.useCallback((lessonId: string) => {
     setIsLoadingLesson(true);
-    api.get(`/lessons/${activeLessonId}`).then(res => {
+    api.get(`/lessons/${lessonId}`).then(res => {
       setActiveLesson(res.data.data.lesson);
       setHlsToken(res.data.data.hlsToken);
-      // Ensure we trigger auto-play when a new lesson is loaded
       setTimeout(() => setPlaying(true), 100);
     }).catch(console.error)
       .finally(() => setIsLoadingLesson(false));
+  }, [setPlaying]);
+
+  React.useEffect(() => {
+    if (!activeLessonId) return;
+    fetchLesson(activeLessonId);
 
     // Setup 10-second progress ping
     saveProgressInterval.current = setInterval(() => {
@@ -184,6 +192,7 @@ export function WatchLessonPage() {
               onTimeUpdate={(time: number) => { currentVideoTime.current = time; }}
               onNextLesson={getNextPrevLesson('next') ? handleNextLesson : undefined}
               onPrevLesson={getNextPrevLesson('prev') ? handlePrevLesson : undefined}
+              onRetry={() => activeLessonId && fetchLesson(activeLessonId)}
             />
           )}
           

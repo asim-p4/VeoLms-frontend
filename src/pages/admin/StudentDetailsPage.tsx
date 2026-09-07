@@ -4,7 +4,7 @@ import { api } from '../../lib/axios';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { ArrowLeft, BookOpen, Clock, Ban, CheckCircle } from 'lucide-react';
+import { ArrowLeft, BookOpen, Clock, Ban, CheckCircle, Plus, X } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 
 interface Enrollment {
@@ -38,6 +38,41 @@ export function StudentDetailsPage() {
   const [data, setData] = React.useState<StudentDetails | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [togglingId, setTogglingId] = React.useState<string | null>(null);
+  const [allCourses, setAllCourses] = React.useState<{ _id: string; title: string }[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = React.useState('');
+  const [isEnrolling, setIsEnrolling] = React.useState(false);
+  const [showEnrollModal, setShowEnrollModal] = React.useState(false);
+
+  const loadAvailableCourses = async () => {
+    try {
+      const res = await api.get('/admin/courses?limit=100');
+      setAllCourses(res.data.data.courses || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAdminEnroll = async () => {
+    if (!selectedCourseId) {
+      toast.error('Please select a course to enroll');
+      return;
+    }
+    try {
+      setIsEnrolling(true);
+      await api.post('/admin/enrollments', {
+        userId: id,
+        courseId: selectedCourseId,
+      });
+      toast.success('Student enrolled successfully in course!');
+      setShowEnrollModal(false);
+      setSelectedCourseId('');
+      fetchStudentDetails();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to enroll student');
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
 
   const fetchStudentDetails = React.useCallback(async () => {
     try {
@@ -127,7 +162,71 @@ export function StudentDetailsPage() {
           <BookOpen className="h-5 w-5 text-gray-500" />
           Enrolled Courses ({enrollments.length})
         </h3>
+        <Button 
+          size="sm" 
+          onClick={() => {
+            setShowEnrollModal(true);
+            loadAvailableCourses();
+          }}
+          className="gap-1"
+        >
+          <Plus className="h-4 w-4" /> Enroll in Course
+        </Button>
       </div>
+
+      {showEnrollModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-lg font-semibold text-gray-900">Enroll Student in Course</h3>
+              <button 
+                onClick={() => setShowEnrollModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Course
+              </label>
+              <select
+                value={selectedCourseId}
+                onChange={(e) => setSelectedCourseId(e.target.value)}
+                className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              >
+                <option value="">-- Choose a course --</option>
+                {allCourses.map((c: any) => (
+                  <option key={c._id || c.id} value={c._id || c.id}>
+                    {c.title} {c.isPublished ? '' : '(Draft)'}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Student will receive instant active access to this course.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowEnrollModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                size="sm" 
+                disabled={isEnrolling || !selectedCourseId}
+                onClick={handleAdminEnroll}
+              >
+                {isEnrolling ? 'Enrolling...' : 'Confirm Enrollment'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {enrollments.map((enrollment) => (

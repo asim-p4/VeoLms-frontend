@@ -8,7 +8,7 @@
  * - Delete confirmation modal integration (Mocked)
  */
 import * as React from 'react';
-import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, Globe, Lock } from 'lucide-react';
 import { api } from '../../lib/axios';
 import { Course } from '../../types';
 import { Button } from '../../components/ui/Button';
@@ -18,12 +18,30 @@ import { Badge } from '../../components/ui/Badge';
 export function CourseManagementPage() {
   const [courses, setCourses] = React.useState<Course[]>([]);
   const [search, setSearch] = React.useState('');
+  const [togglingCourseId, setTogglingCourseId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     api.get('/admin/courses').then(res => setCourses(res.data.data.courses)).catch(console.error);
   }, []);
 
   const filteredCourses = courses.filter(c => c.title.toLowerCase().includes(search.toLowerCase()));
+
+  const handleTogglePublish = async (courseId: string, currentStatus: boolean) => {
+    try {
+      setTogglingCourseId(courseId);
+      await api.patch(`/admin/courses/${courseId}`, { isPublished: !currentStatus });
+      setCourses(prev =>
+        prev.map(c =>
+          ((c._id || c.id) === courseId ? { ...c, isPublished: !currentStatus } : c)
+        )
+      );
+    } catch (err) {
+      console.error('Failed to toggle publish status', err);
+      alert('Failed to update course publish status. Please try again.');
+    } finally {
+      setTogglingCourseId(null);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
@@ -87,13 +105,35 @@ export function CourseManagementPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <Badge variant={course.isPublished ? 'default' : 'secondary'}>
-                    {course.isPublished ? 'Published' : 'Draft'}
-                  </Badge>
+                  <button
+                    onClick={() => handleTogglePublish(course._id ?? course.id, !!course.isPublished)}
+                    disabled={togglingCourseId === (course._id ?? course.id)}
+                    className="inline-flex items-center group focus:outline-none"
+                    title={`Click to ${course.isPublished ? 'unpublish' : 'publish'}`}
+                  >
+                    <Badge variant={course.isPublished ? 'default' : 'secondary'} className="cursor-pointer hover:opacity-80 transition-opacity">
+                      {togglingCourseId === (course._id ?? course.id) ? (
+                        'Updating...'
+                      ) : course.isPublished ? (
+                        <span className="inline-flex items-center"><Globe className="h-3 w-3 mr-1 text-primary-600" /> Published</span>
+                      ) : (
+                        <span className="inline-flex items-center"><Lock className="h-3 w-3 mr-1 text-gray-500" /> Draft</span>
+                      )}
+                    </Badge>
+                  </button>
                 </td>
                 <td className="px-6 py-4 font-medium">${((course.price ?? 0) / 100).toLocaleString()}</td>
                 <td className="px-6 py-4">{(course.studentsCount ?? 0).toLocaleString()}</td>
                 <td className="px-6 py-4 text-right space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTogglePublish(course._id ?? course.id, !!course.isPublished)}
+                    disabled={togglingCourseId === (course._id ?? course.id)}
+                    className={course.isPublished ? 'text-amber-600 border-amber-300 hover:bg-amber-50 h-8 text-xs' : 'text-green-600 border-green-300 hover:bg-green-50 h-8 text-xs'}
+                  >
+                    {togglingCourseId === (course._id ?? course.id) ? '...' : course.isPublished ? 'Unpublish' : 'Publish'}
+                  </Button>
                   <Button variant="ghost" size="icon" asChild>
                     <a href={`/courses/${course.slug ?? course.id}`} target="_blank" title="View Public Page"><Eye className="h-4 w-4 text-gray-500" /></a>
                   </Button>

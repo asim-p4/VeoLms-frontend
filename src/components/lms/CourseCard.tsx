@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { Course } from '../../types';
 
 interface CourseCardProps {
@@ -7,16 +8,28 @@ interface CourseCardProps {
 
 export function CourseCard({ course }: CourseCardProps) {
   const [isHovered, setIsHovered] = React.useState(false);
+  const [isMuted, setIsMuted] = React.useState(true);
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
   React.useEffect(() => {
     if (isHovered && videoRef.current) {
+      videoRef.current.muted = isMuted;
       videoRef.current.play().catch(() => {});
     } else if (!isHovered && videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
     }
-  }, [isHovered]);
+  }, [isHovered, isMuted]);
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = nextMuted;
+    }
+  };
 
   return (
     <a 
@@ -32,14 +45,27 @@ export function CourseCard({ course }: CourseCardProps) {
           className={`w-full h-full object-cover transition-opacity duration-300 ${isHovered && course.trailerUrl ? 'opacity-0' : 'opacity-100'}`} 
         />
         {course.trailerUrl && (
-          <video
-            ref={videoRef}
-            src={course.trailerUrl}
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
-            loop
-            muted
-            playsInline
-          />
+          <>
+            <video
+              ref={videoRef}
+              src={course.trailerUrl}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+              loop
+              muted={isMuted}
+              playsInline
+              preload="metadata"
+            />
+            {isHovered && (
+              <button
+                type="button"
+                onClick={toggleMute}
+                className="absolute top-2 right-2 z-20 p-2 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-sm transition-all shadow-md"
+                title={isMuted ? "Click to enable audio" : "Click to mute audio"}
+              >
+                {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4 text-primary-400" />}
+              </button>
+            )}
+          </>
         )}
       </div>
       <div className="p-4 flex flex-col flex-1">
@@ -59,3 +85,4 @@ export function CourseCard({ course }: CourseCardProps) {
     </a>
   );
 }
+
