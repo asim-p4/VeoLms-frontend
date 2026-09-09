@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { resolveMediaUrl } from '../../utils/media';
 
 export function CourseDetailPage() {
   const params = useParams();
@@ -130,11 +131,11 @@ export function CourseDetailPage() {
             </div>
             <div className="aspect-video bg-black flex items-center justify-center">
               <video 
-                src={course.trailerUrl} 
+                src={resolveMediaUrl(course.trailerUrl)} 
                 controls 
                 autoPlay 
                 playsInline 
-                poster={course.thumbnail}
+                poster={resolveMediaUrl(course.thumbnail)}
                 className="w-full h-full object-contain"
               />
             </div>
@@ -174,7 +175,7 @@ export function CourseDetailPage() {
                 }}
                 title="Click to preview trailer"
               >
-                <img src={course.thumbnail} alt={course.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <img src={resolveMediaUrl(course.thumbnail)} alt={course.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center group-hover:bg-black/50 transition-colors">
                   <div className="p-3 bg-white/20 backdrop-blur-md rounded-full group-hover:scale-110 transition-transform">
                     <PlayCircle className="h-14 w-14 text-white drop-shadow-md" />
@@ -268,11 +269,11 @@ export function CourseDetailPage() {
             <h2 className="text-2xl font-bold mb-6">Course Trailer</h2>
             <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg border border-gray-200">
                <video 
-                 src={course.trailerUrl} 
+                 src={resolveMediaUrl(course.trailerUrl)} 
                  controls 
                  playsInline
                  preload="metadata"
-                 poster={course.thumbnail}
+                 poster={resolveMediaUrl(course.thumbnail)}
                  className="w-full h-full object-contain" 
                />
             </div>
@@ -296,7 +297,7 @@ export function CourseDetailPage() {
         <h2 className="text-2xl font-bold mb-6">About the Instructor</h2>
         <div className="flex flex-col md:flex-row gap-6 items-start p-6 border border-gray-200 rounded-xl bg-white">
           <img 
-            src={course.instructorAvatar || (course.instructor as any)?.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(course.instructorName || (course.instructor as any)?.name || 'Instructor')} 
+            src={resolveMediaUrl(course.instructorAvatar || (course.instructor as any)?.avatar) || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(course.instructorName || (course.instructor as any)?.name || 'Instructor'))} 
             alt={course.instructorName || (course.instructor as any)?.name} 
             className="w-24 h-24 rounded-full object-cover" 
           />

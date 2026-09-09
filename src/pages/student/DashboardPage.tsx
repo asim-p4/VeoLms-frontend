@@ -24,6 +24,7 @@ export interface Enrollment {
   isActive: boolean;
 }
 import { Button } from '../../components/ui/Button';
+import { resolveMediaUrl } from '../../utils/media';
 import { Skeleton } from '../../components/ui/Skeleton';
 // Assuming a Radix-based Progress primitive exists
 import * as Progress from '@radix-ui/react-progress';
@@ -116,7 +117,7 @@ export function DashboardPage() {
           {enrollments.map(({ course, progressPercentage, isActive }, idx) => (
             <div key={course?._id || (course as any)?.id || idx} className={`group bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow ${!isActive ? 'opacity-75 grayscale' : ''}`}>
               <div className="aspect-video relative">
-                <img src={course?.thumbnail} alt={course?.title} className="w-full h-full object-cover" />
+                <img src={resolveMediaUrl(course?.thumbnail)} alt={course?.title} className="w-full h-full object-cover" />
                 {!isActive && (
                   <div className="absolute top-2 right-2 bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded">
                     LOCKED

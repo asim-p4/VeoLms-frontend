@@ -13,6 +13,7 @@ import { api } from '../../lib/axios';
 import { Course } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { resolveMediaUrl } from '../../utils/media';
 import { Badge } from '../../components/ui/Badge';
 
 export function CourseManagementPage() {
@@ -96,7 +97,7 @@ export function CourseManagementPage() {
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     {course.thumbnail && (
-                      <img src={course.thumbnail} alt="" className="h-10 w-16 object-cover rounded shadow-sm" />
+                      <img src={resolveMediaUrl(course.thumbnail)} alt="" className="h-10 w-16 object-cover rounded shadow-sm" />
                     )}
                     <div>
                       <p className="font-medium text-gray-900 line-clamp-1">{course.title}</p>

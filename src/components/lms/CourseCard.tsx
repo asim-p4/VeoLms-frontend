@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Course } from '../../types';
+import { resolveMediaUrl } from '../../utils/media';
 
 interface CourseCardProps {
   course: Course;
@@ -10,6 +11,9 @@ export function CourseCard({ course }: CourseCardProps) {
   const [isHovered, setIsHovered] = React.useState(false);
   const [isMuted, setIsMuted] = React.useState(true);
   const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  const thumbnailUrl = resolveMediaUrl(course.thumbnail);
+  const trailerUrl = resolveMediaUrl(course.trailerUrl);
 
   React.useEffect(() => {
     if (isHovered && videoRef.current) {
@@ -40,15 +44,15 @@ export function CourseCard({ course }: CourseCardProps) {
     >
       <div className="aspect-video w-full overflow-hidden relative">
         <img 
-          src={course.thumbnail} 
+          src={thumbnailUrl} 
           alt={course.title} 
-          className={`w-full h-full object-cover transition-opacity duration-300 ${isHovered && course.trailerUrl ? 'opacity-0' : 'opacity-100'}`} 
+          className={`w-full h-full object-cover transition-opacity duration-300 ${isHovered && trailerUrl ? 'opacity-0' : 'opacity-100'}`} 
         />
-        {course.trailerUrl && (
+        {trailerUrl && (
           <>
             <video
               ref={videoRef}
-              src={course.trailerUrl}
+              src={trailerUrl}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
               loop
               muted={isMuted}

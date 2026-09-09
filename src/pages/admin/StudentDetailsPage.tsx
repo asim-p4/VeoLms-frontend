@@ -6,6 +6,7 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ArrowLeft, BookOpen, Clock, Ban, CheckCircle, Plus, X } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
+import { resolveMediaUrl } from '../../utils/media';
 
 interface Enrollment {
   _id: string;
@@ -232,7 +233,7 @@ export function StudentDetailsPage() {
         {enrollments.map((enrollment) => (
           <Card key={enrollment._id} className={!enrollment.isActive ? 'opacity-75 bg-gray-50' : ''}>
             <img 
-              src={enrollment.course.thumbnail} 
+              src={resolveMediaUrl(enrollment.course.thumbnail)} 
               alt={enrollment.course.title} 
               className="w-full h-32 object-cover rounded-t-lg grayscale-0"
               style={{ filter: !enrollment.isActive ? 'grayscale(100%)' : 'none' }}

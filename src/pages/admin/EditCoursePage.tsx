@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { HlsVideoUploader, HlsUploaderRef } from '../../components/lms/HlsVideoUploader';
+import { resolveMediaUrl } from '../../utils/media';
 
 export function EditCoursePage() {
   const { id } = useParams();
@@ -272,7 +273,7 @@ export function EditCoursePage() {
               </div>
             </div>
             <div>
-              <img src={course.thumbnail} alt="Thumbnail" className="w-full aspect-video object-cover rounded-md border border-gray-200" />
+              <img src={resolveMediaUrl(course.thumbnail)} alt="Thumbnail" className="w-full aspect-video object-cover rounded-md border border-gray-200" />
             </div>
           </CardContent>
         )}
