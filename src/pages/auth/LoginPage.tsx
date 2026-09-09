@@ -29,19 +29,36 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 type LoginMode = 'student' | 'admin';
 
+const DEMO_ADMIN_EMAIL = 'admin@veolms.com';
+const DEMO_ADMIN_PASSWORD = 'Admin@123456';
+
 export function LoginPage() {
-  const [loginMode, setLoginMode] = useState<LoginMode>('student');
+  const [loginMode, setLoginMode] = useState<LoginMode>('admin');
   const { login, isLoading, setLoading, error, setError } = useAuthStore();
   const navigate = useNavigate();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: DEMO_ADMIN_EMAIL,
+      password: DEMO_ADMIN_PASSWORD,
+    },
   });
 
   const handleTabChange = (mode: LoginMode) => {
     setLoginMode(mode);
     setError(null);
-    reset();
+    if (mode === 'admin') {
+      reset({
+        email: DEMO_ADMIN_EMAIL,
+        password: DEMO_ADMIN_PASSWORD,
+      });
+    } else {
+      reset({
+        email: '',
+        password: '',
+      });
+    }
   };
 
   const onSubmit = async (data: LoginFormValues) => {
