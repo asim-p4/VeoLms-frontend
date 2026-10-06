@@ -135,10 +135,12 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
-        xhrSetup: function(xhr) {
-          xhr.withCredentials = true;
-          if (hlsToken) {
-            xhr.setRequestHeader('Authorization', `Bearer ${hlsToken}`);
+        xhrSetup: function(xhr: XMLHttpRequest, url: string) {
+          if (!url.includes('r2.cloudflarestorage.com') && !url.includes('X-Amz-')) {
+            xhr.withCredentials = true;
+            if (hlsToken) {
+              xhr.setRequestHeader('Authorization', `Bearer ${hlsToken}`);
+            }
           }
         }
       });

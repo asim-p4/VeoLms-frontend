@@ -10,9 +10,11 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   envPrefix: ['VITE_', 'SERVER_'],
+  root: process.cwd(),
   resolve: {
+    preserveSymlinks: true,
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(process.cwd(), './src'),
     },
   },
   server: {

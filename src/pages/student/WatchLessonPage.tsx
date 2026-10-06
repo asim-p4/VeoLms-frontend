@@ -20,6 +20,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Lesson, LessonProgress } from '../../types';
 import { usePlayerStore } from '../../store/playerStore';
 import { VideoPlayer } from '../../components/lms/VideoPlayer';
+import { resolveMediaUrl } from '../../utils/media';
 
 export function WatchLessonPage() {
   const { isLessonSidebarOpen, toggleLessonSidebar } = useUiStore();
@@ -186,7 +187,7 @@ export function WatchLessonPage() {
             </div>
           ) : (
             <VideoPlayer 
-              src={activeLesson?.videoUrl}
+              src={resolveMediaUrl(activeLesson?.videoUrl)}
               hlsToken={hlsToken}
               startPosition={progressData[activeLessonId || '']?.lastPosition || 0}
               onTimeUpdate={(time: number) => { currentVideoTime.current = time; }}

@@ -17,5 +17,13 @@ export function resolveMediaUrl(url?: string | null): string {
     return `/api/courses/trailer/${filename}`;
   }
 
+  // If URL is an R2 key or presigned R2 video URL, route to our backend HLS streaming endpoint
+  if (url.includes('/videos/') || url.startsWith('videos/')) {
+    const match = url.match(/videos\/([^/?]+)\/([^/?]+)/);
+    if (match) {
+      return `/api/lessons/stream/${match[1]}/${match[2]}`;
+    }
+  }
+
   return url;
 }
