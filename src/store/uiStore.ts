@@ -38,7 +38,7 @@ export const useUiStore = create<UiState>()(
       toggleLessonSidebar: () => set((state) => ({ isLessonSidebarOpen: !state.isLessonSidebarOpen })),
     }),
     {
-      name: 'veolms-ui-storage',
+      name: 'futurelms-ui-storage',
       // Only persist theme
       partialize: (state) => ({ theme: state.theme }),
     }

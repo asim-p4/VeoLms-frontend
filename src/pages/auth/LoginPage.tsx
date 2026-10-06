@@ -102,7 +102,7 @@ export function LoginPage() {
         <div className="flex flex-col items-center">
           <BookOpen className="h-10 w-10 text-primary-600 mb-2" />
           <h1 className="text-center text-2xl font-bold tracking-tight text-gray-900">
-            Sign in to VeoLMS
+            Sign in to FutureLMS
           </h1>
           <p className="mt-1 text-center text-sm text-gray-500">
             Welcome back! Please select your account type.

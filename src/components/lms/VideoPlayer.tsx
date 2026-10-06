@@ -65,7 +65,7 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [availableQualities, setAvailableQualities] = React.useState<QualityOption[]>([]);
   const [selectedQuality, setSelectedQuality] = React.useState<'360p' | '144p'>(() => {
-    const saved = localStorage.getItem('veolms_video_quality');
+    const saved = localStorage.getItem('futurelms_video_quality');
     return saved === '144p' ? '144p' : '360p'; // by default select 360p
   });
   const [videoError, setVideoError] = React.useState<string | null>(null);
@@ -90,7 +90,7 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
 
   const handleQualityChange = (option: QualityOption) => {
     setSelectedQuality(option.label);
-    localStorage.setItem('veolms_video_quality', option.label);
+    localStorage.setItem('futurelms_video_quality', option.label);
     if (hlsRef.current) {
       hlsRef.current.currentLevel = option.levelIndex; // Instantly switches to target resolution
     }
@@ -179,7 +179,7 @@ export function VideoPlayer({ src, poster, hlsToken, startPosition, onNextLesson
         setAvailableQualities(options);
 
         // Lock to user's preferred quality (defaults to 360p) - strictly disables auto ABR
-        const savedPreference = localStorage.getItem('veolms_video_quality') || '360p';
+        const savedPreference = localStorage.getItem('futurelms_video_quality') || '360p';
         const targetOption = options.find(o => o.label === savedPreference) || options[0];
 
         if (targetOption) {

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Core type definitions for the VeoLMS platform.
+ * @fileoverview Core type definitions for the FutureLMS platform.
  * These interfaces represent the data models used throughout the application.
  * 
  * TODO: Align these interfaces exactly with the backend API schemas once available.

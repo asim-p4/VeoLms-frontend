@@ -47,7 +47,7 @@ export function Navbar() {
           
           <a href={user ? (user.role === 'admin' ? '/admin' : '/dashboard') : "/"} className="flex items-center gap-2 font-bold text-xl text-primary-600">
             <BookOpen className="h-6 w-6" />
-            <span>VeoLMS</span>
+            <span>FutureLMS</span>
           </a>
         </div>
 

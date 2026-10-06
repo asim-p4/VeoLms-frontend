@@ -48,7 +48,7 @@ export function AdminDashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard Overview</h1>
-        <p className="text-gray-500">Welcome to the VeoLMS administration panel.</p>
+        <p className="text-gray-500">Welcome to the FutureLMS administration panel.</p>
       </div>
 
       {/* KPI Cards */}

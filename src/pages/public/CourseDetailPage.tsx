@@ -303,7 +303,7 @@ export function CourseDetailPage() {
           />
           <div>
             <h3 className="text-xl font-bold">{course.instructorName || (course.instructor as any)?.name}</h3>
-            <p className="text-gray-500 mb-4">{course.instructorBio || (course.instructor as any)?.bio || 'Instructor at VeoLMS'}</p>
+            <p className="text-gray-500 mb-4">{course.instructorBio || (course.instructor as any)?.bio || 'Instructor at FutureLMS'}</p>
             <div className="flex gap-4 text-sm font-medium text-gray-700">
               <span>{(course.instructor as any)?.studentsCount?.toLocaleString() || 0} Students</span>
               <span>{(course.instructor as any)?.coursesCount || 0} Courses</span>

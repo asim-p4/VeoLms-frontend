@@ -85,7 +85,7 @@ export const useAuthStore = create<AuthState>()(
       }
     }),
     {
-      name: 'veolms-auth-storage',
+      name: 'futurelms-auth-storage',
       // Only persist the user object. Access token must be renewed on every refresh.
       partialize: (state) => ({ user: state.user }),
     }

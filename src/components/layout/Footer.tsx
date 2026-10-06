@@ -14,7 +14,7 @@ export function Footer() {
           <div className="col-span-1 md:col-span-1">
             <a href="/" className="flex items-center gap-2 font-bold text-xl text-primary-600 mb-4">
               <BookOpen className="h-6 w-6" />
-              <span>VeoLMS</span>
+              <span>FutureLMS</span>
             </a>
             <p className="text-gray-500 mb-4">
               Open-source learning management system designed to make education accessible to everyone.
@@ -50,7 +50,7 @@ export function Footer() {
         </div>
         
         <div className="mt-12 pt-8 border-t border-gray-200 text-center text-gray-500">
-          <p>&copy; {new Date().getFullYear()} VeoLMS. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} FutureLMS. All rights reserved.</p>
         </div>
       </div>
     </footer>
